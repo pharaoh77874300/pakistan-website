@@ -1,0 +1,23 @@
+{
+  "overview": "Pakistan.com is a professional social media platform combining features from Twitter, Instagram, Reddit, and Facebook — with profiles, posts, a personalized feed, and an explore page.",
+  "features": [
+    "User profiles with bio, avatar, and cover photo",
+    "Create posts with text and images",
+    "Like and comment on posts",
+    "Personalized feed from followed users",
+    "Explore page to discover content and search",
+    "Follow and unfollow other users",
+    "Dark and light mode",
+    "Sign-up page for new users",
+    "Onboarding flow with welcome screen, profile setup, and people-to-follow suggestions"
+  ],
+  "category": "social-media",
+  "tags": [
+    "social",
+    "profiles",
+    "feed",
+    "explore",
+    "community"
+  ],
+  "last_updated": "2026-05-21T13:30:29.049Z"
+}

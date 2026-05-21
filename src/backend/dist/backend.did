@@ -1,0 +1,129 @@
+type _ImmutableObjectStorageRefillResult = 
+ record {
+   success: opt bool;
+   topped_up_amount: opt nat;
+ };
+type _ImmutableObjectStorageRefillInformation = record {
+                                                  proposed_top_up_amount:
+                                                   opt nat;};
+type _ImmutableObjectStorageCreateCertificateResult = 
+ record {
+   blob_hash: text;
+   method: text;
+ };
+type UserRole = 
+ variant {
+   admin;
+   guest;
+   user;
+ };
+type UserId = principal;
+type UpdateProfileInput = 
+ record {
+   avatarBlob: opt ExternalBlob;
+   bio: opt text;
+   coverBlob: opt ExternalBlob;
+   username: opt text;
+ };
+type Timestamp = int;
+type ProfileView = 
+ record {
+   avatarBlob: opt ExternalBlob;
+   bio: text;
+   coverBlob: opt ExternalBlob;
+   createdAt: Timestamp;
+   followerCount: nat;
+   followingCount: nat;
+   id: UserId;
+   postCount: nat;
+   username: text;
+ };
+type PostView = 
+ record {
+   authorId: UserId;
+   commentCount: nat;
+   content: text;
+   createdAt: Timestamp;
+   id: PostId;
+   imageBlob: opt ExternalBlob;
+   likeCount: nat;
+   likedByMe: bool;
+ };
+type PostId = nat;
+type Page_1 = 
+ record {
+   items: vec PostView;
+   nextOffset: opt nat;
+   total: nat;
+ };
+type Page = 
+ record {
+   items: vec ProfileView;
+   nextOffset: opt nat;
+   total: nat;
+ };
+type ExternalBlob = blob;
+type CreateProfileInput = 
+ record {
+   avatarBlob: opt ExternalBlob;
+   bio: text;
+   coverBlob: opt ExternalBlob;
+   username: text;
+ };
+type CreatePostInput = 
+ record {
+   content: text;
+   imageBlob: opt ExternalBlob;
+ };
+type CommentId = nat;
+type Comment = 
+ record {
+   authorId: UserId;
+   content: text;
+   createdAt: Timestamp;
+   id: CommentId;
+   postId: PostId;
+ };
+service : {
+  _immutableObjectStorageBlobsAreLive: (hashes: vec blob) -> (vec bool) query;
+  _immutableObjectStorageBlobsToDelete: () -> (vec blob) query;
+  _immutableObjectStorageConfirmBlobDeletion: (blobs: vec blob) -> ();
+  _immutableObjectStorageCreateCertificate: (blobHash: text) ->
+   (_ImmutableObjectStorageCreateCertificateResult);
+  _immutableObjectStorageRefillCashier: (refillInformation:
+   opt _ImmutableObjectStorageRefillInformation) ->
+   (_ImmutableObjectStorageRefillResult);
+  _immutableObjectStorageUpdateGatewayPrincipals: () -> ();
+  _initializeAccessControl: () -> ();
+  addComment: (postId: PostId, content: text) -> (Comment);
+  assignCallerUserRole: (user: principal, role: UserRole) -> ();
+  createPost: (input: CreatePostInput) -> (PostView);
+  createProfile: (input: CreateProfileInput) -> (ProfileView);
+  deleteComment: (commentId: CommentId) -> ();
+  deletePost: (postId: PostId) -> ();
+  followUser: (target: UserId) -> ();
+  getCallerUserProfile: () -> (opt ProfileView) query;
+  getCallerUserRole: () -> (UserRole) query;
+  getFeed: (offset: nat, limit: nat) -> (Page_1) query;
+  getFollowers: (userId: UserId) -> (vec UserId) query;
+  getFollowing: (userId: UserId) -> (vec UserId) query;
+  getFollowingIds: () -> (vec UserId) query;
+  getMyProfile: () -> (opt ProfileView) query;
+  getPost: (postId: PostId) -> (opt PostView) query;
+  getProfile: (userId: UserId) -> (opt ProfileView) query;
+  getProfileByUsername: (username: text) -> (opt ProfileView) query;
+  getUserProfile: (user: UserId) -> (opt ProfileView) query;
+  isCallerAdmin: () -> (bool) query;
+  isFollowing: (target: UserId) -> (bool) query;
+  listAllPosts: (offset: nat, limit: nat) -> (Page_1) query;
+  listComments: (postId: PostId) -> (vec Comment) query;
+  listPostsByUser: (userId: UserId, offset: nat, limit: nat) ->
+   (Page_1) query;
+  listProfiles: (offset: nat, limit: nat) -> (Page) query;
+  saveCallerUserProfile: (input: CreateProfileInput) -> ();
+  searchPosts: (keyword: text) -> (vec PostView) query;
+  searchUsers: (keyword: text) -> (vec ProfileView) query;
+  toggleLike: (postId: PostId) -> (nat, bool);
+  unfollowUser: (target: UserId) -> ();
+  updateProfile: (input: UpdateProfileInput) -> (ProfileView);
+}
