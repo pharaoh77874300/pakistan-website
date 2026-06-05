@@ -1,8 +1,20 @@
 import { Avatar } from "@/components/shared/Avatar";
 import { useAuth } from "@/hooks/use-auth";
 import { useMyProfile } from "@/hooks/use-backend";
+import { useGetMyAdminRole } from "@/hooks/use-backend";
+import { useUnreadCount } from "@/hooks/use-notifications";
 import { Link, useLocation } from "@tanstack/react-router";
-import { Compass, Home, LogIn, LogOut, User, Zap } from "lucide-react";
+import {
+  Bell,
+  Compass,
+  Home,
+  LogIn,
+  LogOut,
+  Settings,
+  Shield,
+  User,
+  Zap,
+} from "lucide-react";
 
 interface NavItem {
   to: string;
@@ -14,12 +26,16 @@ interface NavItem {
 const navItems: NavItem[] = [
   { to: "/", label: "Home", icon: Home, exact: true },
   { to: "/explore", label: "Explore", icon: Compass },
+  { to: "/notifications", label: "Notifications", icon: Bell },
+  { to: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function Sidebar() {
   const location = useLocation();
   const { isAuthenticated, identity, login, logout } = useAuth();
   const { data: profile } = useMyProfile();
+  const { data: unreadCount = 0n } = useUnreadCount();
+  const { data: adminRole } = useGetMyAdminRole();
 
   const isActive = (to: string, exact?: boolean) => {
     if (exact) return location.pathname === to;
@@ -38,7 +54,7 @@ export function Sidebar() {
           <Zap className="w-4 h-4 text-white" />
         </div>
         <span className="font-display font-bold text-xl text-foreground">
-          ConnectSphere
+          Pakistan
         </span>
       </Link>
 
@@ -46,6 +62,7 @@ export function Sidebar() {
       <nav className="flex flex-col gap-1 flex-1">
         {navItems.map((item) => {
           const active = isActive(item.to, item.exact);
+          const isNotifications = item.to === "/notifications";
           return (
             <Link
               key={item.to}
@@ -58,7 +75,15 @@ export function Sidebar() {
               data-ocid={`nav.${item.label.toLowerCase()}_link`}
             >
               <item.icon className="w-5 h-5" />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {isNotifications && unreadCount > 0n && (
+                <span
+                  className="ml-auto min-w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center px-1.5 font-bold"
+                  data-ocid="nav.notifications_badge"
+                >
+                  {unreadCount > 99n ? "99+" : unreadCount.toString()}
+                </span>
+              )}
             </Link>
           );
         })}
@@ -76,6 +101,21 @@ export function Sidebar() {
           >
             <User className="w-5 h-5" />
             Profile
+          </Link>
+        )}
+
+        {isAuthenticated && adminRole != null && (
+          <Link
+            to="/admin"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-smooth ${
+              location.pathname.startsWith("/admin")
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+            }`}
+            data-ocid="nav.admin_link"
+          >
+            <Shield className="w-5 h-5" />
+            <span className="flex-1">Admin</span>
           </Link>
         )}
       </nav>

@@ -73,4 +73,15 @@ mixin (
   public query func searchUsers(keyword : Text) : async [ProfileTypes.ProfileView] {
     ProfileLib.searchByUsername(profileState, keyword);
   };
+
+  // Admin-only: set or unset verified badge on a user
+  public shared ({ caller }) func adminSetVerified(
+    userId : Common.UserId,
+    verified : Bool,
+  ) : async () {
+    if (not AccessControl.hasPermission(accessControlState, caller, #admin)) {
+      Runtime.trap("Unauthorized: admin only");
+    };
+    ProfileLib.setVerified(profileState, userId, verified);
+  };
 };

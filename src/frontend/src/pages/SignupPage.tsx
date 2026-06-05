@@ -14,7 +14,7 @@ export default function SignupPage() {
       if (user.profile) {
         navigate({ to: "/" });
       } else {
-        navigate({ to: "/onboarding/welcome" });
+        navigate({ to: "/profile/setup" });
       }
     }
   }, [user, navigate]);
@@ -65,7 +65,7 @@ export default function SignupPage() {
               <Zap className="w-6 h-6 text-white" />
             </div>
             <span className="font-display font-bold text-3xl text-foreground">
-              Pakistan.com
+              Pakistan
             </span>
           </div>
 

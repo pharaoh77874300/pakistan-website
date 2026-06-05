@@ -7,6 +7,7 @@ import {
 } from "@/hooks/use-backend";
 import type { ProfileView, UserId } from "@/types";
 import { Link } from "@tanstack/react-router";
+import { BadgeCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar } from "./Avatar";
 
@@ -49,8 +50,15 @@ export function UserCard({ profile, index = 1 }: UserCardProps) {
       >
         <Avatar blob={profile.avatarBlob} name={profile.username} size="md" />
         <div className="min-w-0">
-          <p className="font-display font-semibold text-foreground text-sm truncate">
+          <p className="font-display font-semibold text-foreground text-sm truncate flex items-center gap-1">
             {profile.username}
+            {profile.isVerified && (
+              <BadgeCheck
+                className="w-3.5 h-3.5 text-primary flex-shrink-0"
+                aria-label="Verified"
+                data-ocid={`user.verified_badge.${index}`}
+              />
+            )}
           </p>
           <p className="text-muted-foreground text-xs truncate max-w-[150px]">
             {profile.bio || "No bio yet"}

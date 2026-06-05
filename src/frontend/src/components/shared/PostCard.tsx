@@ -1,3 +1,4 @@
+import { PostPrivacy } from "@/backend";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,8 +12,10 @@ import type { PostView, UserId } from "@/types";
 import { Link } from "@tanstack/react-router";
 import {
   Heart,
+  Lock,
   MessageCircle,
   MoreHorizontal,
+  Pin,
   Share2,
   Trash2,
 } from "lucide-react";
@@ -23,6 +26,7 @@ import { Avatar } from "./Avatar";
 interface PostCardProps {
   post: PostView;
   index?: number;
+  pinned?: boolean;
 }
 
 function timeAgo(ts: bigint): string {
@@ -37,7 +41,7 @@ function timeAgo(ts: bigint): string {
   return `${Math.floor(hrs / 24)}d`;
 }
 
-export function PostCard({ post, index = 1 }: PostCardProps) {
+export function PostCard({ post, index = 1, pinned }: PostCardProps) {
   const { identity } = useAuth();
   const [optimisticLiked, setOptimisticLiked] = useState<boolean | null>(null);
   const [optimisticCount, setOptimisticCount] = useState<bigint | null>(null);
@@ -97,9 +101,22 @@ export function PostCard({ post, index = 1 }: PostCardProps) {
             size="md"
           />
           <div className="min-w-0">
-            <p className="font-display font-semibold text-foreground text-sm truncate">
-              {authorProfile?.username ?? "Loading..."}
-            </p>
+            <div className="flex items-center gap-1.5">
+              <p className="font-display font-semibold text-foreground text-sm truncate">
+                {authorProfile?.username ?? "Loading..."}
+              </p>
+              {pinned && (
+                <span className="flex items-center gap-0.5 text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full flex-shrink-0">
+                  <Pin className="w-2.5 h-2.5" />
+                  Pinned
+                </span>
+              )}
+              {post.privacy === PostPrivacy.followersOnly && (
+                <span className="flex items-center gap-0.5 text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full flex-shrink-0">
+                  <Lock className="w-2.5 h-2.5" />
+                </span>
+              )}
+            </div>
             <p className="text-muted-foreground text-xs">
               {timeAgo(post.createdAt)}
             </p>

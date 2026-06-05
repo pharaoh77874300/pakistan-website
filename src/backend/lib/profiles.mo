@@ -34,6 +34,7 @@ module {
       followerCount = profile.followerCount;
       followingCount = profile.followingCount;
       postCount = profile.postCount;
+      isVerified = profile.isVerified;
       createdAt = profile.createdAt;
     };
   };
@@ -62,6 +63,7 @@ module {
       var followerCount = 0;
       var followingCount = 0;
       var postCount = 0;
+      var isVerified = false;
       createdAt = now;
     };
     state.profiles.add(caller, profile);
@@ -191,7 +193,18 @@ module {
       case null {};
     };
   };
-  public func decrementPostCount(state : State, userId : Common.UserId) {
+  
+  public func setVerified(
+    state : State,
+    userId : Common.UserId,
+    verified : Bool,
+  ) : () {
+    switch (state.profiles.get(userId)) {
+      case (?p) { p.isVerified := verified };
+      case null { Runtime.trap("Profile not found") };
+    };
+  };
+public func decrementPostCount(state : State, userId : Common.UserId) {
     switch (state.profiles.get(userId)) {
       case (?p) { if (p.postCount > 0) { p.postCount := p.postCount - 1 } };
       case null {};

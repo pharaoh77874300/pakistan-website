@@ -1,3 +1,4 @@
+import { PostPrivacy } from "@/backend";
 import { Layout } from "@/components/layout/Layout";
 import { Avatar } from "@/components/shared/Avatar";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -18,7 +19,7 @@ import {
 import type { ExternalBlob, PostView } from "@/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Image, UserCircle2, X } from "lucide-react";
+import { Globe, Image, Lock, UserCircle2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -31,6 +32,7 @@ function CreatePostBox() {
   const [content, setContent] = useState("");
   const [image, setImage] = useState<ExternalBlob | undefined>(undefined);
   const [showUpload, setShowUpload] = useState(false);
+  const [privacy, setPrivacy] = useState<PostPrivacy>(PostPrivacy.public_);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea
@@ -56,6 +58,8 @@ function CreatePostBox() {
       commentCount: 0n,
       likedByMe: false,
       createdAt: BigInt(Date.now()) * 1_000_000n,
+      retweetCount: 0n,
+      privacy,
     };
 
     qc.setQueryData<{ items: PostView[]; total: bigint; nextOffset?: bigint }>(
@@ -76,8 +80,15 @@ function CreatePostBox() {
       textareaRef.current.style.height = "auto";
     }
 
+    const prevPrivacy = privacy;
+    setPrivacy(PostPrivacy.public_);
+
     try {
-      await createPost({ content: prevContent, imageBlob: prevImage });
+      await createPost({
+        content: prevContent,
+        imageBlob: prevImage,
+        privacy: prevPrivacy,
+      });
       toast.success("Post published!");
     } catch {
       // Rollback optimistic update
@@ -92,6 +103,7 @@ function CreatePostBox() {
       }));
       setContent(prevContent);
       setImage(prevImage);
+      setPrivacy(prevPrivacy);
       toast.error("Could not publish post");
     }
   };
@@ -165,6 +177,37 @@ function CreatePostBox() {
                 >
                   <Image className="w-4 h-4" />
                   <span className="hidden sm:inline">Photo</span>
+                </button>
+                {/* Privacy toggle */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPrivacy(
+                      privacy === PostPrivacy.public_
+                        ? PostPrivacy.followersOnly
+                        : PostPrivacy.public_,
+                    )
+                  }
+                  className={`flex items-center gap-1.5 text-sm px-2.5 py-1.5 rounded-lg transition-smooth ${
+                    privacy === PostPrivacy.followersOnly
+                      ? "text-primary bg-primary/10"
+                      : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+                  }`}
+                  aria-label={
+                    privacy === PostPrivacy.public_
+                      ? "Public post"
+                      : "Followers only"
+                  }
+                  data-ocid="post.privacy_toggle"
+                >
+                  {privacy === PostPrivacy.public_ ? (
+                    <Globe className="w-4 h-4" />
+                  ) : (
+                    <Lock className="w-4 h-4" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {privacy === PostPrivacy.public_ ? "Public" : "Followers"}
+                  </span>
                 </button>
               </div>
 

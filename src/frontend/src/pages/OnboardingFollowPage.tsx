@@ -52,7 +52,7 @@ export default function OnboardingFollowPage() {
               <Zap className="w-3.5 h-3.5 text-white" />
             </div>
             <span className="font-display font-semibold text-foreground text-sm">
-              Pakistan.com
+              Pakistan
             </span>
           </div>
           <StepIndicator current={3} total={3} />

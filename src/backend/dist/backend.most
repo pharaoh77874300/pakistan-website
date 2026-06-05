@@ -1,4 +1,26 @@
 // Version: 1.0.0
+type ActionKind__963076589 =
+  {
+    #addModerator;
+    #dismissFlag;
+    #removeComment;
+    #removeModerator;
+    #removePost;
+    #resolveFlag;
+    #suspendUser;
+    #unsuspendUser
+  };
+type ActivityLogEntry__874489866 =
+  {
+    action : ActionKind__963076589;
+    id : Nat;
+    note : ?Text;
+    performedBy : UserId__158757552;
+    targetId : ?Nat;
+    targetPrincipal : ?UserId__158757552;
+    timestamp : Timestamp__301639476
+  };
+type AdminRole__188511608 = {#moderator; #owner};
 type CommentId__821569710 = Nat;
 type Comment__495386713 =
   {
@@ -8,34 +30,71 @@ type Comment__495386713 =
     id : CommentId__821569710;
     postId : PostId__861309770
   };
-type Data__159895909<T> = {var count : Nat__490723111; elements : [var ?T]};
-type Data__791452850<K, V> =
-  {var count : Nat__490723111; kvs : [var ?(K, V)]};
+type Data__628993992<T> = {var count : Nat__1040412405; elements : [var ?T]};
+type Data__80296667<K, V> =
+  {var count : Nat__1040412405; kvs : [var ?(K, V)]};
 type ExternalBlob__671167343 = Blob;
-type Internal__667636161<T> =
-  {children : [var ?Node__92254746<T>]; data : Data__159895909<T>};
-type Internal__8484328<K, V> =
-  {children : [var ?Node__46230540<K, V>]; data : Data__791452850<K, V>};
-type Leaf__520550824<T> = {data : Data__159895909<T>};
-type Leaf__809889148<K, V> = {data : Data__791452850<K, V>};
-type List__415060402<T> = List__790383201<T>;
-type List__790383201<T> =
+type FlagRecord__816698439 =
   {
-    var blockIndex : Nat__490723111;
-    var blocks : [var [var ?T]];
-    var elementIndex : Nat__490723111
+    createdAt : Timestamp__301639476;
+    id : Nat;
+    reason : Text;
+    reportedBy : UserId__158757552;
+    var resolution : ?Text;
+    var resolvedAt : ?Timestamp__301639476;
+    var resolvedBy : ?UserId__158757552;
+    var status : FlagStatus__793608063;
+    targetId : Nat;
+    targetKind : FlagTargetKind__45731496;
+    targetPrincipal : ?UserId__158757552
   };
-type Map__158565046<K, V> = Map__297112838<K, V>;
-type Map__297112838<K, V> =
-  {var root : Node__46230540<K, V>; var size : Nat__490723111};
-type Map__605269027<K, V> = Map__158565046<K, V>;
-type Nat__490723111 = Nat__920180692;
+type FlagStatus__793608063 = {#dismissed; #pending; #resolved};
+type FlagTargetKind__45731496 = {#comment; #post; #user};
+type Internal__1007892817<T> =
+  {children : [var ?Node__918630472<T>]; data : Data__628993992<T>};
+type Internal__41346355<K, V> =
+  {children : [var ?Node__1000929467<K, V>]; data : Data__80296667<K, V>};
+type Leaf__693487502<T> = {data : Data__628993992<T>};
+type Leaf__712614010<K, V> = {data : Data__80296667<K, V>};
+type List__529703492<T> =
+  {
+    var blockIndex : Nat__1040412405;
+    var blocks : [var [var ?T]];
+    var elementIndex : Nat__1040412405
+  };
+type List__560604548<T> = List__529703492<T>;
+type Map__222667396<K, V> = Map__912772452<K, V>;
+type Map__709709801<K, V> =
+  {var root : Node__1000929467<K, V>; var size : Nat__1040412405};
+type Map__912772452<K, V> = Map__709709801<K, V>;
+type Mention__973140433 =
+  {
+    authorId : UserId__158757552;
+    createdAt : Timestamp__301639476;
+    mentionedUserId : UserId__158757552;
+    postId : PostId__861309770
+  };
+type Nat__1040412405 = Nat__920180692;
 type Nat__920180692 = Nat;
-type Node__46230540<K, V> =
-  {#internal : Internal__8484328<K, V>; #leaf : Leaf__809889148<K, V>};
-type Node__92254746<T> =
-  {#internal : Internal__667636161<T>; #leaf : Leaf__520550824<T>};
+type Node__1000929467<K, V> =
+  {#internal : Internal__41346355<K, V>; #leaf : Leaf__712614010<K, V>};
+type Node__918630472<T> =
+  {#internal : Internal__1007892817<T>; #leaf : Leaf__693487502<T>};
+type NotificationType__908192046 =
+  {#comment; #follow; #like; #mention; #retweet};
+type Notification__264708741 =
+  {
+    actorId : UserId__158757552;
+    createdAt : Timestamp__301639476;
+    id : Nat;
+    var isRead : Bool;
+    notifType : NotificationType__908192046;
+    recipientId : UserId__158757552;
+    targetPostId : ?PostId__861309770;
+    targetUserId : ?UserId__158757552
+  };
 type PostId__861309770 = Nat;
+type PostPrivacy__232810526 = {#followersOnly; #public_};
 type Post__495728462 =
   {
     authorId : UserId__158757552;
@@ -44,11 +103,20 @@ type Post__495728462 =
     createdAt : Timestamp__301639476;
     id : PostId__861309770;
     var imageBlob : ?ExternalBlob__671167343;
-    var likeCount : Nat
+    var likeCount : Nat;
+    var privacy : PostPrivacy__232810526;
+    var retweetCount : Nat
   };
-type Set__532252804<T> = Set__710576254<T>;
-type Set__710576254<T> =
-  {var root : Node__92254746<T>; var size : Nat__490723111};
+type RoleEntry__287554419 =
+  {
+    grantedAt : Timestamp__301639476;
+    grantedBy : UserId__158757552;
+    role : AdminRole__188511608;
+    userId : UserId__158757552
+  };
+type Set__1052415927<T> = Set__310360741<T>;
+type Set__310360741<T> =
+  {var root : Node__918630472<T>; var size : Nat__1040412405};
 type Timestamp__301639476 = Int;
 type UserId__158757552 = Principal;
 type UserProfile__190304746 =
@@ -60,6 +128,7 @@ type UserProfile__190304746 =
     var followerCount : Nat;
     var followingCount : Nat;
     id : UserId__158757552;
+    var isVerified : Bool;
     var postCount : Nat;
     var username : Text
   };
@@ -68,36 +137,71 @@ actor {
   stable accessControlState :
     {
       var adminAssigned : Bool;
-      userRoles : Map__605269027<Principal, UserRole__1073662873>
+      userRoles : Map__222667396<Principal, UserRole__1073662873>
+    };
+  stable adminState :
+    {
+      activityLog : List__560604548<ActivityLogEntry__874489866>;
+      flags : List__560604548<FlagRecord__816698439>;
+      var nextFlagId : Nat;
+      var nextLogId : Nat;
+      var ownerId : ?UserId__158757552;
+      roles : Map__222667396<UserId__158757552, RoleEntry__287554419>;
+      suspendedUsers :
+        Map__222667396<UserId__158757552, Timestamp__301639476>
     };
   stable engagementState :
     {
-      comments : Map__605269027<CommentId__821569710, Comment__495386713>;
+      comments : Map__222667396<CommentId__821569710, Comment__495386713>;
       counters : {var nextCommentId : Nat};
       postCommentIndex :
-        Map__605269027<PostId__861309770,
-                        List__415060402<CommentId__821569710>>
+        Map__222667396<PostId__861309770,
+                        List__560604548<CommentId__821569710>>
+    };
+  stable mentionsState :
+    {
+      mentions :
+        Map__222667396<UserId__158757552, List__560604548<Mention__973140433>>
+    };
+  stable moderationState :
+    {
+      blocks :
+        Map__222667396<UserId__158757552, Set__1052415927<UserId__158757552>>;
+      mutes :
+        Map__222667396<UserId__158757552, Set__1052415927<UserId__158757552>>
+    };
+  stable notifState :
+    {
+      counters : {var nextNotifId : Nat};
+      notifications :
+        Map__222667396<UserId__158757552,
+                        List__560604548<Notification__264708741>>
+    };
+  stable pinnedState :
+    {
+      pinnedPosts :
+        Map__222667396<UserId__158757552, List__560604548<PostId__861309770>>
     };
   stable postState :
     {
       counters : {var nextPostId : Nat};
       likes :
-        Map__605269027<PostId__861309770, Set__532252804<UserId__158757552>>;
-      posts : Map__605269027<PostId__861309770, Post__495728462>;
+        Map__222667396<PostId__861309770, Set__1052415927<UserId__158757552>>;
+      posts : Map__222667396<PostId__861309770, Post__495728462>;
       userPostIndex :
-        Map__605269027<UserId__158757552, List__415060402<PostId__861309770>>
+        Map__222667396<UserId__158757552, List__560604548<PostId__861309770>>
     };
   stable profileState :
     {
       counters : {var nextId : Nat};
-      profiles : Map__605269027<UserId__158757552, UserProfile__190304746>;
-      usernameIndex : Map__605269027<Text, UserId__158757552>
+      profiles : Map__222667396<UserId__158757552, UserProfile__190304746>;
+      usernameIndex : Map__222667396<Text, UserId__158757552>
     };
   stable socialState :
     {
       followers :
-        Map__605269027<UserId__158757552, Set__532252804<UserId__158757552>>;
+        Map__222667396<UserId__158757552, Set__1052415927<UserId__158757552>>;
       following :
-        Map__605269027<UserId__158757552, Set__532252804<UserId__158757552>>
+        Map__222667396<UserId__158757552, Set__1052415927<UserId__158757552>>
     }
 };

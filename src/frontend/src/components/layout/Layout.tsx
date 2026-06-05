@@ -1,4 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
+import { useGetMyAdminRole } from "@/hooks/use-backend";
+import { Link } from "@tanstack/react-router";
+import { Shield } from "lucide-react";
 import { Header } from "./Header";
 import { MobileNav } from "./MobileNav";
 import { Sidebar } from "./Sidebar";
@@ -9,6 +12,8 @@ interface LayoutProps {
 }
 
 export function Layout({ children, rightPanel }: LayoutProps) {
+  const { data: adminRole } = useGetMyAdminRole();
+
   return (
     <div className="min-h-screen bg-background flex">
       <Sidebar />
@@ -27,6 +32,19 @@ export function Layout({ children, rightPanel }: LayoutProps) {
       </div>
       <MobileNav />
       <Toaster position="bottom-right" richColors />
+      {adminRole != null && (
+        <Link
+          to="/admin"
+          data-ocid="admin.fab_button"
+          className="group fixed bottom-20 right-6 z-50 sm:bottom-6 flex items-center gap-2 rounded-full bg-green-600 px-4 py-3 text-white shadow-lg transition-all duration-200 hover:bg-green-700 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2"
+          aria-label="Admin Panel"
+        >
+          <Shield className="h-5 w-5 flex-shrink-0" />
+          <span className="max-w-0 overflow-hidden whitespace-nowrap text-sm font-medium transition-all duration-200 group-hover:max-w-xs">
+            Admin Panel
+          </span>
+        </Link>
+      )}
     </div>
   );
 }

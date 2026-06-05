@@ -1,4 +1,11 @@
-import { createActor } from "@/backend";
+import {
+  type ActivityLogView,
+  type AdminRole,
+  type FlagStatus,
+  type FlagView,
+  type RoleEntry,
+  createActor,
+} from "@/backend";
 import type {
   Comment,
   CommentId,
@@ -279,6 +286,21 @@ export function useDeleteComment() {
   });
 }
 
+// ─── Pinned Post Queries ──────────────────────────────────────────────────────
+
+export function usePinnedPosts(userId: UserId | null | undefined) {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery<PostId[]>({
+    queryKey: ["pinnedPosts", userId?.toString()],
+    queryFn: async () => {
+      if (!actor || !userId) return [];
+      return actor.getPinnedPosts(userId);
+    },
+    enabled: !!actor && !isFetching && !!userId,
+    staleTime: 60_000,
+  });
+}
+
 // ─── Follow Queries ───────────────────────────────────────────────────────────
 
 export function useIsFollowing(userId: UserId | null | undefined) {
@@ -350,6 +372,362 @@ export function useUnfollowUser() {
       qc.invalidateQueries({ queryKey: ["followers"] });
       qc.invalidateQueries({ queryKey: ["following"] });
       qc.invalidateQueries({ queryKey: ["profile"] });
+    },
+  });
+}
+
+// ─── Moderation Queries ───────────────────────────────────────────────────────
+
+export function useBlockedUsers() {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery<UserId[]>({
+    queryKey: ["blockedUsers"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getBlockedUsers();
+    },
+    enabled: !!actor && !isFetching,
+    staleTime: 30_000,
+  });
+}
+
+export function useMutedUsers() {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery<UserId[]>({
+    queryKey: ["mutedUsers"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getMutedUsers();
+    },
+    enabled: !!actor && !isFetching,
+    staleTime: 30_000,
+  });
+}
+
+export function useBlockUser() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (userId: UserId) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.blockUser(userId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["blockedUsers"] });
+    },
+  });
+}
+
+export function useUnblockUser() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (userId: UserId) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.unblockUser(userId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["blockedUsers"] });
+    },
+  });
+}
+
+export function useMuteUser() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (userId: UserId) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.muteUser(userId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mutedUsers"] });
+    },
+  });
+}
+
+export function useUnmuteUser() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (userId: UserId) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.unmuteUser(userId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mutedUsers"] });
+    },
+  });
+}
+
+// ─── Admin Queries ────────────────────────────────────────────────────────────
+
+export function useGetMyAdminRole() {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery<AdminRole | null>({
+    queryKey: ["myAdminRole"],
+    queryFn: async () => {
+      if (!actor) return null;
+      return actor.getMyAdminRole();
+    },
+    enabled: !!actor && !isFetching,
+    staleTime: 30_000,
+  });
+}
+
+export function useGetOwner() {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery<UserId | null>({
+    queryKey: ["owner"],
+    queryFn: async () => {
+      if (!actor) return null;
+      return actor.getOwner();
+    },
+    enabled: !!actor && !isFetching,
+    staleTime: 60_000,
+  });
+}
+
+export function useListModerators() {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery<RoleEntry[]>({
+    queryKey: ["moderators"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.listModerators();
+    },
+    enabled: !!actor && !isFetching,
+    staleTime: 30_000,
+  });
+}
+
+export function useListFlags(status: FlagStatus | null = null) {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery<FlagView[]>({
+    queryKey: ["flags", status],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.listFlags(status);
+    },
+    enabled: !!actor && !isFetching,
+    staleTime: 15_000,
+  });
+}
+
+export function useListActivityLog(offset = 0n, limit = 50n) {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery<ActivityLogView[]>({
+    queryKey: ["activityLog", offset.toString()],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.listActivityLog(offset, limit);
+    },
+    enabled: !!actor && !isFetching,
+    staleTime: 15_000,
+  });
+}
+
+export function useIsUserSuspended(userId: UserId | null | undefined) {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery<boolean>({
+    queryKey: ["isUserSuspended", userId?.toString()],
+    queryFn: async () => {
+      if (!actor || !userId) return false;
+      return actor.isUserSuspended(userId);
+    },
+    enabled: !!actor && !isFetching && !!userId,
+    staleTime: 30_000,
+  });
+}
+
+export function useClaimOwnerRole() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      if (!actor) throw new Error("Not connected");
+      return actor.claimOwnerRole();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["myAdminRole"] });
+      qc.invalidateQueries({ queryKey: ["owner"] });
+    },
+  });
+}
+
+export function useAddModerator() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (target: UserId) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.addModerator(target);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["moderators"] });
+      qc.invalidateQueries({ queryKey: ["activityLog"] });
+    },
+  });
+}
+
+export function useRemoveModerator() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (target: UserId) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.removeModerator(target);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["moderators"] });
+      qc.invalidateQueries({ queryKey: ["activityLog"] });
+    },
+  });
+}
+
+export function useAdminRemovePost() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ postId, note }: { postId: PostId; note?: string }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.adminRemovePost(postId, note ?? null);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["flags"] });
+      qc.invalidateQueries({ queryKey: ["allPosts"] });
+      qc.invalidateQueries({ queryKey: ["activityLog"] });
+    },
+  });
+}
+
+export function useAdminRemoveComment() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      commentId,
+      note,
+    }: { commentId: CommentId; note?: string }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.adminRemoveComment(commentId, note ?? null);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["flags"] });
+      qc.invalidateQueries({ queryKey: ["activityLog"] });
+    },
+  });
+}
+
+export function useAdminSuspendUser() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ target, note }: { target: UserId; note?: string }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.adminSuspendUser(target, note ?? null);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["flags"] });
+      qc.invalidateQueries({ queryKey: ["isUserSuspended"] });
+      qc.invalidateQueries({ queryKey: ["activityLog"] });
+    },
+  });
+}
+
+export function useAdminUnsuspendUser() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ target, note }: { target: UserId; note?: string }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.adminUnsuspendUser(target, note ?? null);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["isUserSuspended"] });
+      qc.invalidateQueries({ queryKey: ["activityLog"] });
+      qc.invalidateQueries({ queryKey: ["flags"] });
+    },
+  });
+}
+
+export function useResolveFlag() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ flagId, note }: { flagId: bigint; note?: string }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.resolveFlag(flagId, note ?? null);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["flags"] });
+      qc.invalidateQueries({ queryKey: ["activityLog"] });
+    },
+  });
+}
+
+export function useDismissFlag() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ flagId, note }: { flagId: bigint; note?: string }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.dismissFlag(flagId, note ?? null);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["flags"] });
+      qc.invalidateQueries({ queryKey: ["activityLog"] });
+    },
+  });
+}
+
+export function useFlagPost() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      postId,
+      reason,
+    }: { postId: PostId; reason: string }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.flagPost(postId, reason);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["flags"] });
+    },
+  });
+}
+
+export function useFlagComment() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      commentId,
+      reason,
+    }: { commentId: CommentId; reason: string }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.flagComment(commentId, reason);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["flags"] });
+    },
+  });
+}
+
+export function useFlagUser() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      target,
+      reason,
+    }: { target: UserId; reason: string }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.flagUser(target, reason);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["flags"] });
     },
   });
 }

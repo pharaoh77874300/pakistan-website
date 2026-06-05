@@ -46,7 +46,7 @@ export default function LoginPage() {
               <Zap className="w-6 h-6 text-white" />
             </div>
             <span className="font-display font-bold text-3xl text-foreground">
-              ConnectSphere
+              Pakistan
             </span>
           </div>
 

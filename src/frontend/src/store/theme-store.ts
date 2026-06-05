@@ -11,7 +11,7 @@ interface ThemeState {
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set, get) => ({
-      theme: "dark",
+      theme: "light",
       setTheme: (theme) => {
         set({ theme });
         applyTheme(theme);
@@ -22,7 +22,7 @@ export const useThemeStore = create<ThemeState>()(
         applyTheme(next);
       },
     }),
-    { name: "connectsphere-theme" },
+    { name: "pakistan-theme" },
   ),
 );
 
@@ -36,8 +36,8 @@ function applyTheme(theme: Theme) {
 }
 
 // Apply stored theme on module load
-const stored = localStorage.getItem("connectsphere-theme");
+const stored = localStorage.getItem("pakistan-theme");
 const initial: Theme = stored
   ? (JSON.parse(stored) as { state: { theme: Theme } }).state.theme
-  : "dark";
+  : "light";
 applyTheme(initial);

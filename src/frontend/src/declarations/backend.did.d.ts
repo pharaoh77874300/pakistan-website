@@ -10,6 +10,25 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
+export type ActionKind = { 'addModerator' : null } |
+  { 'removeComment' : null } |
+  { 'removeModerator' : null } |
+  { 'suspendUser' : null } |
+  { 'dismissFlag' : null } |
+  { 'removePost' : null } |
+  { 'resolveFlag' : null } |
+  { 'unsuspendUser' : null };
+export interface ActivityLogView {
+  'id' : bigint,
+  'action' : ActionKind,
+  'note' : [] | [string],
+  'targetPrincipal' : [] | [UserId],
+  'performedBy' : UserId,
+  'timestamp' : Timestamp,
+  'targetId' : [] | [bigint],
+}
+export type AdminRole = { 'moderator' : null } |
+  { 'owner' : null };
 export interface Comment {
   'id' : CommentId,
   'content' : string,
@@ -21,6 +40,7 @@ export type CommentId = bigint;
 export interface CreatePostInput {
   'content' : string,
   'imageBlob' : [] | [ExternalBlob],
+  'privacy' : [] | [PostPrivacy],
 }
 export interface CreateProfileInput {
   'bio' : string,
@@ -29,6 +49,46 @@ export interface CreateProfileInput {
   'coverBlob' : [] | [ExternalBlob],
 }
 export type ExternalBlob = Uint8Array;
+export type FlagStatus = { 'resolved' : null } |
+  { 'pending' : null } |
+  { 'dismissed' : null };
+export type FlagTargetKind = { 'post' : null } |
+  { 'user' : null } |
+  { 'comment' : null };
+export interface FlagView {
+  'id' : bigint,
+  'status' : FlagStatus,
+  'createdAt' : Timestamp,
+  'resolution' : [] | [string],
+  'targetPrincipal' : [] | [UserId],
+  'reportedBy' : UserId,
+  'targetKind' : FlagTargetKind,
+  'targetId' : bigint,
+  'resolvedAt' : [] | [Timestamp],
+  'resolvedBy' : [] | [UserId],
+  'reason' : string,
+}
+export interface Mention {
+  'mentionedUserId' : UserId,
+  'authorId' : UserId,
+  'createdAt' : Timestamp,
+  'postId' : PostId,
+}
+export type NotificationType = { 'retweet' : null } |
+  { 'like' : null } |
+  { 'comment' : null } |
+  { 'mention' : null } |
+  { 'follow' : null };
+export interface NotificationView {
+  'id' : bigint,
+  'notifType' : NotificationType,
+  'createdAt' : Timestamp,
+  'isRead' : boolean,
+  'actorId' : UserId,
+  'targetPostId' : [] | [PostId],
+  'recipientId' : UserId,
+  'targetUserId' : [] | [UserId],
+}
 export interface Page {
   'total' : bigint,
   'nextOffset' : [] | [bigint],
@@ -39,7 +99,19 @@ export interface Page_1 {
   'nextOffset' : [] | [bigint],
   'items' : Array<PostView>,
 }
+export interface Page_2 {
+  'total' : bigint,
+  'nextOffset' : [] | [bigint],
+  'items' : Array<NotificationView>,
+}
+export interface Page_3 {
+  'total' : bigint,
+  'nextOffset' : [] | [bigint],
+  'items' : Array<Mention>,
+}
 export type PostId = bigint;
+export type PostPrivacy = { 'followersOnly' : null } |
+  { 'public' : null };
 export interface PostView {
   'id' : PostId,
   'likeCount' : bigint,
@@ -47,6 +119,8 @@ export interface PostView {
   'imageBlob' : [] | [ExternalBlob],
   'authorId' : UserId,
   'createdAt' : Timestamp,
+  'retweetCount' : bigint,
+  'privacy' : PostPrivacy,
   'commentCount' : bigint,
   'likedByMe' : boolean,
 }
@@ -57,9 +131,16 @@ export interface ProfileView {
   'username' : string,
   'avatarBlob' : [] | [ExternalBlob],
   'createdAt' : Timestamp,
+  'isVerified' : boolean,
   'followerCount' : bigint,
   'followingCount' : bigint,
   'coverBlob' : [] | [ExternalBlob],
+}
+export interface RoleEntry {
+  'grantedAt' : Timestamp,
+  'grantedBy' : UserId,
+  'userId' : UserId,
+  'role' : AdminRole,
 }
 export type Timestamp = bigint;
 export interface UpdateProfileInput {
@@ -104,34 +185,75 @@ export interface _SERVICE {
   '_immutableObjectStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
   '_initializeAccessControl' : ActorMethod<[], undefined>,
   'addComment' : ActorMethod<[PostId, string], Comment>,
+  'addModerator' : ActorMethod<[UserId], undefined>,
+  'addNotification' : ActorMethod<
+    [UserId, UserId, NotificationType, [] | [PostId], [] | [UserId]],
+    undefined
+  >,
+  'adminRemoveComment' : ActorMethod<[CommentId, [] | [string]], undefined>,
+  'adminRemovePost' : ActorMethod<[PostId, [] | [string]], undefined>,
+  'adminSetVerified' : ActorMethod<[UserId, boolean], undefined>,
+  'adminSuspendUser' : ActorMethod<[UserId, [] | [string]], undefined>,
+  'adminUnsuspendUser' : ActorMethod<[UserId, [] | [string]], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
+  'blockUser' : ActorMethod<[UserId], undefined>,
+  'claimOwnerRole' : ActorMethod<[], undefined>,
+  'clearAllNotifications' : ActorMethod<[], undefined>,
   'createPost' : ActorMethod<[CreatePostInput], PostView>,
   'createProfile' : ActorMethod<[CreateProfileInput], ProfileView>,
   'deleteComment' : ActorMethod<[CommentId], undefined>,
   'deletePost' : ActorMethod<[PostId], undefined>,
+  'dismissFlag' : ActorMethod<[bigint, [] | [string]], undefined>,
+  'flagComment' : ActorMethod<[CommentId, string], bigint>,
+  'flagPost' : ActorMethod<[PostId, string], bigint>,
+  'flagUser' : ActorMethod<[UserId, string], bigint>,
   'followUser' : ActorMethod<[UserId], undefined>,
+  'getBlockedUsers' : ActorMethod<[], Array<UserId>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [ProfileView]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getFeed' : ActorMethod<[bigint, bigint], Page_1>,
+  'getFlag' : ActorMethod<[bigint], [] | [FlagView]>,
   'getFollowers' : ActorMethod<[UserId], Array<UserId>>,
   'getFollowing' : ActorMethod<[UserId], Array<UserId>>,
   'getFollowingIds' : ActorMethod<[], Array<UserId>>,
+  'getMentionsForUser' : ActorMethod<[UserId, bigint, bigint], Page_3>,
+  'getMutedUsers' : ActorMethod<[], Array<UserId>>,
+  'getMyAdminRole' : ActorMethod<[], [] | [AdminRole]>,
+  'getMyNotifications' : ActorMethod<[bigint, bigint], Page_2>,
   'getMyProfile' : ActorMethod<[], [] | [ProfileView]>,
+  'getOwner' : ActorMethod<[], [] | [UserId]>,
+  'getPinnedPosts' : ActorMethod<[UserId], Array<PostId>>,
   'getPost' : ActorMethod<[PostId], [] | [PostView]>,
   'getProfile' : ActorMethod<[UserId], [] | [ProfileView]>,
   'getProfileByUsername' : ActorMethod<[string], [] | [ProfileView]>,
+  'getUnreadCount' : ActorMethod<[], bigint>,
   'getUserProfile' : ActorMethod<[UserId], [] | [ProfileView]>,
+  'isBlocked' : ActorMethod<[UserId], boolean>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'isFollowing' : ActorMethod<[UserId], boolean>,
+  'isMuted' : ActorMethod<[UserId], boolean>,
+  'isUserSuspended' : ActorMethod<[UserId], boolean>,
+  'listActivityLog' : ActorMethod<[bigint, bigint], Array<ActivityLogView>>,
   'listAllPosts' : ActorMethod<[bigint, bigint], Page_1>,
   'listComments' : ActorMethod<[PostId], Array<Comment>>,
+  'listFlags' : ActorMethod<[[] | [FlagStatus]], Array<FlagView>>,
+  'listModerators' : ActorMethod<[], Array<RoleEntry>>,
   'listPostsByUser' : ActorMethod<[UserId, bigint, bigint], Page_1>,
   'listProfiles' : ActorMethod<[bigint, bigint], Page>,
+  'markAllNotificationsRead' : ActorMethod<[], undefined>,
+  'markNotificationRead' : ActorMethod<[bigint], undefined>,
+  'muteUser' : ActorMethod<[UserId], undefined>,
+  'pinPost' : ActorMethod<[PostId], undefined>,
+  'removeModerator' : ActorMethod<[UserId], undefined>,
+  'resolveFlag' : ActorMethod<[bigint, [] | [string]], undefined>,
   'saveCallerUserProfile' : ActorMethod<[CreateProfileInput], undefined>,
   'searchPosts' : ActorMethod<[string], Array<PostView>>,
   'searchUsers' : ActorMethod<[string], Array<ProfileView>>,
   'toggleLike' : ActorMethod<[PostId], [bigint, boolean]>,
+  'unblockUser' : ActorMethod<[UserId], undefined>,
   'unfollowUser' : ActorMethod<[UserId], undefined>,
+  'unmuteUser' : ActorMethod<[UserId], undefined>,
+  'unpinPost' : ActorMethod<[PostId], undefined>,
   'updateProfile' : ActorMethod<[UpdateProfileInput], ProfileView>,
 }
 export declare const idlService: IDL.ServiceClass;

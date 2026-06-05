@@ -11,6 +11,7 @@ module {
     var followerCount : Nat;
     var followingCount : Nat;
     var postCount : Nat;
+    var isVerified : Bool;
     createdAt : Common.Timestamp;
   };
 
@@ -24,6 +25,7 @@ module {
     followerCount : Nat;
     followingCount : Nat;
     postCount : Nat;
+    isVerified : Bool;
     createdAt : Common.Timestamp;
   };
 

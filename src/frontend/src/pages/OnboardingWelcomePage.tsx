@@ -37,7 +37,7 @@ export default function OnboardingWelcomePage() {
   }, [isAuthenticated, isInitializing, navigate]);
 
   const handleGetStarted = () => {
-    navigate({ to: "/onboarding/profile" });
+    navigate({ to: "/profile/setup" });
   };
 
   const handleSkip = () => {
@@ -64,7 +64,7 @@ export default function OnboardingWelcomePage() {
             <Zap className="w-7 h-7 text-white" />
           </div>
           <span className="font-display font-bold text-3xl text-foreground tracking-tight">
-            Pakistan.com
+            Pakistan
           </span>
         </div>
 

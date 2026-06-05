@@ -1,0 +1,651 @@
+import { AdminRole, FlagStatus, FlagTargetKind } from "@/backend";
+import { Layout } from "@/components/layout/Layout";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  useAddModerator,
+  useAdminRemoveComment,
+  useAdminRemovePost,
+  useAdminSuspendUser,
+  useAdminUnsuspendUser,
+  useClaimOwnerRole,
+  useDismissFlag,
+  useGetMyAdminRole,
+  useGetOwner,
+  useListActivityLog,
+  useListFlags,
+  useListModerators,
+  useRemoveModerator,
+  useResolveFlag,
+} from "@/hooks/use-backend";
+import type { UserId } from "@/types";
+import { createPrincipal } from "@/utils/principal";
+import { useNavigate } from "@tanstack/react-router";
+import {
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Flag,
+  Shield,
+  ShieldOff,
+  Trash2,
+  UserCheck,
+  UserMinus,
+  UserX,
+  Users,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  color,
+}: {
+  label: string;
+  value: number | string;
+  icon: React.ElementType;
+  color: string;
+}) {
+  return (
+    <Card className="border-border">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground">{label}</p>
+            <p className="text-3xl font-bold text-foreground mt-1">{value}</p>
+          </div>
+          <div className={`p-3 rounded-xl ${color}`}>
+            <Icon className="w-6 h-6" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FlagStatusBadge({ status }: { status: FlagStatus }) {
+  if (status === FlagStatus.pending)
+    return (
+      <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+        Pending
+      </Badge>
+    );
+  if (status === FlagStatus.resolved)
+    return (
+      <Badge className="bg-primary/10 text-primary border-primary/20">
+        Resolved
+      </Badge>
+    );
+  return <Badge className="bg-muted text-muted-foreground">Dismissed</Badge>;
+}
+
+function FlagKindBadge({ kind }: { kind: FlagTargetKind }) {
+  const map: Record<string, string> = {
+    [FlagTargetKind.post]: "bg-blue-100 text-blue-800",
+    [FlagTargetKind.comment]: "bg-purple-100 text-purple-800",
+    [FlagTargetKind.user]: "bg-red-100 text-red-800",
+  };
+  return <Badge className={map[kind] ?? "bg-muted"}>{kind}</Badge>;
+}
+
+export default function AdminPage() {
+  const navigate = useNavigate();
+  const { data: myRole, isLoading: roleLoading } = useGetMyAdminRole();
+  const { data: owner } = useGetOwner();
+  const { data: moderators = [], isLoading: modLoading } = useListModerators();
+  const { data: allFlags = [], isLoading: flagsLoading } = useListFlags();
+  const { data: activityLog = [] } = useListActivityLog();
+
+  const claimOwner = useClaimOwnerRole();
+  const addModerator = useAddModerator();
+  const removeModerator = useRemoveModerator();
+  const resolveFlag = useResolveFlag();
+  const dismissFlag = useDismissFlag();
+  const removePost = useAdminRemovePost();
+  const removeComment = useAdminRemoveComment();
+  const suspendUser = useAdminSuspendUser();
+  const unsuspendUser = useAdminUnsuspendUser();
+
+  const [newModInput, setNewModInput] = useState("");
+  const [activeTab, setActiveTab] = useState("dashboard");
+
+  const isOwner = myRole === AdminRole.owner;
+  const isModerator = myRole === AdminRole.moderator;
+  const hasAccess = isOwner || isModerator;
+
+  useEffect(() => {
+    if (!roleLoading && !hasAccess && myRole !== undefined) {
+      navigate({ to: "/" });
+    }
+  }, [roleLoading, hasAccess, myRole, navigate]);
+
+  const pendingFlags = allFlags.filter((f) => f.status === FlagStatus.pending);
+  const resolvedFlags = allFlags.filter(
+    (f) => f.status === FlagStatus.resolved,
+  );
+  const dismissedFlags = allFlags.filter(
+    (f) => f.status === FlagStatus.dismissed,
+  );
+
+  const suspendedUserIds = [
+    ...new Set(
+      activityLog
+        .filter((log) => log.action === "suspendUser" && log.targetPrincipal)
+        .map((log) => log.targetPrincipal!.toString()),
+    ),
+  ].filter(
+    (id) =>
+      !activityLog.find(
+        (log) =>
+          log.action === "unsuspendUser" &&
+          log.targetPrincipal?.toString() === id,
+      ),
+  );
+
+  const handleAddModerator = async () => {
+    const trimmed = newModInput.trim();
+    if (!trimmed) return;
+    try {
+      const principal = createPrincipal(trimmed);
+      await addModerator.mutateAsync(principal as UserId);
+      toast.success("Moderator added successfully");
+      setNewModInput("");
+    } catch {
+      toast.error("Failed to add moderator — check the principal ID");
+    }
+  };
+
+  const handleRemoveModerator = async (userId: UserId) => {
+    try {
+      await removeModerator.mutateAsync(userId);
+      toast.success("Moderator removed");
+    } catch {
+      toast.error("Failed to remove moderator");
+    }
+  };
+
+  const handleResolve = async (flagId: bigint) => {
+    try {
+      await resolveFlag.mutateAsync({ flagId });
+      toast.success("Flag resolved");
+    } catch {
+      toast.error("Failed to resolve flag");
+    }
+  };
+
+  const handleDismiss = async (flagId: bigint) => {
+    try {
+      await dismissFlag.mutateAsync({ flagId });
+      toast.success("Flag dismissed");
+    } catch {
+      toast.error("Failed to dismiss flag");
+    }
+  };
+
+  const handleRemoveContent = async (flag: {
+    id: bigint;
+    targetKind: FlagTargetKind;
+    targetId: bigint;
+  }) => {
+    try {
+      if (flag.targetKind === FlagTargetKind.post) {
+        await removePost.mutateAsync({ postId: flag.targetId });
+      } else if (flag.targetKind === FlagTargetKind.comment) {
+        await removeComment.mutateAsync({ commentId: flag.targetId });
+      }
+      await resolveFlag.mutateAsync({
+        flagId: flag.id,
+        note: "Content removed",
+      });
+      toast.success("Content removed and flag resolved");
+    } catch {
+      toast.error("Failed to remove content");
+    }
+  };
+
+  const handleSuspend = async (flag: {
+    id: bigint;
+    targetPrincipal?: UserId;
+  }) => {
+    if (!flag.targetPrincipal) return;
+    try {
+      await suspendUser.mutateAsync({ target: flag.targetPrincipal });
+      await resolveFlag.mutateAsync({
+        flagId: flag.id,
+        note: "User suspended",
+      });
+      toast.success("User suspended");
+    } catch {
+      toast.error("Failed to suspend user");
+    }
+  };
+
+  const handleUnsuspend = async (principalStr: string) => {
+    try {
+      const principal = createPrincipal(principalStr);
+      await unsuspendUser.mutateAsync({ target: principal as UserId });
+      toast.success("User unsuspended");
+    } catch {
+      toast.error("Failed to unsuspend user");
+    }
+  };
+
+  if (roleLoading) {
+    return (
+      <Layout>
+        <div className="p-6 space-y-4">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!hasAccess) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+          <ShieldOff className="w-16 h-16 text-muted-foreground mb-4" />
+          <h2 className="text-xl font-bold text-foreground">Access Denied</h2>
+          <p className="text-muted-foreground mt-2">
+            You don't have permission to view this page.
+          </p>
+        </div>
+      </Layout>
+    );
+  }
+
+  return (
+    <Layout>
+      <div className="p-4 lg:p-6 space-y-6" data-ocid="admin.page">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+              <Shield className="w-6 h-6 text-primary" />
+              Admin Panel
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Role:{" "}
+              <span className="font-semibold text-primary capitalize">
+                {myRole ?? "None"}
+              </span>
+            </p>
+          </div>
+          {!owner && (
+            <Button
+              type="button"
+              onClick={() => claimOwner.mutate()}
+              className="bg-primary text-primary-foreground"
+              data-ocid="admin.claim_owner_button"
+            >
+              Claim Owner Role
+            </Button>
+          )}
+        </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList
+            className="grid w-full grid-cols-4 bg-muted/50"
+            data-ocid="admin.tabs"
+          >
+            <TabsTrigger value="dashboard" data-ocid="admin.dashboard_tab">
+              Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="flags" data-ocid="admin.flags_tab">
+              Flagged
+              {pendingFlags.length > 0 && (
+                <span className="ml-1.5 min-w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center px-1">
+                  {pendingFlags.length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="users" data-ocid="admin.users_tab">
+              Users
+            </TabsTrigger>
+            <TabsTrigger value="moderators" data-ocid="admin.moderators_tab">
+              Moderators
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Dashboard */}
+          <TabsContent value="dashboard" className="mt-6 space-y-6">
+            <div
+              className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+              data-ocid="admin.stats_section"
+            >
+              <StatCard
+                label="Total Flags"
+                value={allFlags.length}
+                icon={Flag}
+                color="bg-primary/10 text-primary"
+              />
+              <StatCard
+                label="Pending"
+                value={pendingFlags.length}
+                icon={Clock}
+                color="bg-amber-100 text-amber-700"
+              />
+              <StatCard
+                label="Resolved"
+                value={resolvedFlags.length}
+                icon={CheckCircle}
+                color="bg-primary/10 text-primary"
+              />
+              <StatCard
+                label="Dismissed"
+                value={dismissedFlags.length}
+                icon={AlertTriangle}
+                color="bg-muted text-muted-foreground"
+              />
+            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Moderator Count</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-primary">
+                  {moderators.length}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Active moderators
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Recent Activity</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {activityLog.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No activity yet.
+                  </p>
+                ) : (
+                  activityLog.slice(0, 10).map((log, i) => (
+                    <div
+                      key={`log-${String(log.timestamp)}-${i}`}
+                      className="flex items-center justify-between py-2 border-b border-border last:border-0"
+                      data-ocid={`admin.activity_log.item.${i + 1}`}
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-foreground capitalize">
+                          {log.action}
+                        </p>
+                        {log.note && (
+                          <p className="text-xs text-muted-foreground">
+                            {log.note}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(
+                          Number(log.timestamp) / 1_000_000,
+                        ).toLocaleDateString()}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Flagged Content */}
+          <TabsContent
+            value="flags"
+            className="mt-6 space-y-4"
+            data-ocid="admin.flags_section"
+          >
+            {flagsLoading ? (
+              ["flag-skel-1", "flag-skel-2", "flag-skel-3"].map((k) => (
+                <Skeleton key={k} className="h-24 w-full" />
+              ))
+            ) : allFlags.length === 0 ? (
+              <div
+                className="text-center py-12"
+                data-ocid="admin.flags.empty_state"
+              >
+                <Flag className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground">No flags to review.</p>
+              </div>
+            ) : (
+              allFlags.map((flag, i) => (
+                <Card
+                  key={flag.id.toString()}
+                  className="border-border"
+                  data-ocid={`admin.flags.item.${i + 1}`}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex flex-wrap items-start gap-2 mb-3">
+                      <FlagKindBadge kind={flag.targetKind} />
+                      <FlagStatusBadge status={flag.status} />
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        {new Date(
+                          Number(flag.createdAt) / 1_000_000,
+                        ).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <p className="text-sm text-foreground mb-1">
+                      <span className="font-semibold">Reason:</span>{" "}
+                      {flag.reason}
+                    </p>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Target ID: {flag.targetId.toString()}
+                    </p>
+                    {flag.status === FlagStatus.pending && (
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="border-primary text-primary hover:bg-primary/10"
+                          onClick={() => handleResolve(flag.id)}
+                          data-ocid={`admin.flags.resolve_button.${i + 1}`}
+                        >
+                          <CheckCircle className="w-3.5 h-3.5 mr-1" /> Resolve
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDismiss(flag.id)}
+                          data-ocid={`admin.flags.dismiss_button.${i + 1}`}
+                        >
+                          Dismiss
+                        </Button>
+                        {flag.targetKind !== FlagTargetKind.user && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="border-destructive text-destructive hover:bg-destructive/10"
+                            onClick={() => handleRemoveContent(flag)}
+                            data-ocid={`admin.flags.remove_content_button.${i + 1}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-1" /> Remove
+                            Content
+                          </Button>
+                        )}
+                        {flag.targetKind === FlagTargetKind.user &&
+                          flag.targetPrincipal && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="border-destructive text-destructive hover:bg-destructive/10"
+                              onClick={() => handleSuspend(flag)}
+                              data-ocid={`admin.flags.suspend_button.${i + 1}`}
+                            >
+                              <UserX className="w-3.5 h-3.5 mr-1" /> Suspend
+                              User
+                            </Button>
+                          )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+
+          {/* Users (Suspended) */}
+          <TabsContent
+            value="users"
+            className="mt-6 space-y-4"
+            data-ocid="admin.users_section"
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Users className="w-4 h-4 text-primary" /> Suspended Users
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {suspendedUserIds.length === 0 ? (
+                  <div
+                    className="text-center py-8"
+                    data-ocid="admin.users.empty_state"
+                  >
+                    <UserCheck className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      No suspended users.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {suspendedUserIds.map((principalStr, i) => (
+                      <div
+                        key={principalStr}
+                        className="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-border"
+                        data-ocid={`admin.users.item.${i + 1}`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-mono text-foreground truncate">
+                            {principalStr}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Suspended user
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="ml-3 border-primary text-primary hover:bg-primary/10 flex-shrink-0"
+                          onClick={() => handleUnsuspend(principalStr)}
+                          data-ocid={`admin.users.unsuspend_button.${i + 1}`}
+                        >
+                          <UserMinus className="w-3.5 h-3.5 mr-1" /> Unsuspend
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Moderators */}
+          <TabsContent
+            value="moderators"
+            className="mt-6 space-y-4"
+            data-ocid="admin.moderators_section"
+          >
+            {isOwner && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Add Moderator</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Principal ID (e.g. aaaaa-aa)"
+                      value={newModInput}
+                      onChange={(e) => setNewModInput(e.target.value)}
+                      className="flex-1"
+                      data-ocid="admin.moderators.add_input"
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleAddModerator}
+                      disabled={!newModInput.trim() || addModerator.isPending}
+                      className="bg-primary text-primary-foreground"
+                      data-ocid="admin.moderators.add_button"
+                    >
+                      Add
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-primary" /> Current Moderators
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {modLoading ? (
+                  ["mod-skel-1", "mod-skel-2"].map((k) => (
+                    <Skeleton key={k} className="h-14 w-full mb-2" />
+                  ))
+                ) : moderators.length === 0 ? (
+                  <div
+                    className="text-center py-8"
+                    data-ocid="admin.moderators.empty_state"
+                  >
+                    <Shield className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      No moderators yet.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {moderators.map((mod, i) => (
+                      <div
+                        key={mod.userId.toString()}
+                        className="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-border"
+                        data-ocid={`admin.moderators.item.${i + 1}`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-mono text-foreground truncate">
+                            {mod.userId.toString()}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Added{" "}
+                            {new Date(
+                              Number(mod.grantedAt) / 1_000_000,
+                            ).toLocaleDateString()}
+                          </p>
+                        </div>
+                        {isOwner && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="ml-3 border-destructive text-destructive hover:bg-destructive/10 flex-shrink-0"
+                            onClick={() => handleRemoveModerator(mod.userId)}
+                            data-ocid={`admin.moderators.remove_button.${i + 1}`}
+                          >
+                            <UserMinus className="w-3.5 h-3.5 mr-1" /> Remove
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </Layout>
+  );
+}

@@ -12,7 +12,7 @@ import { CheckCircle2, ChevronRight, User, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-const NEXT = "/onboarding/follow";
+const NEXT = "/";
 
 export default function OnboardingProfilePage() {
   const { isAuthenticated, isInitializing } = useAuth();
@@ -77,7 +77,7 @@ export default function OnboardingProfilePage() {
               <Zap className="w-3.5 h-3.5 text-white" />
             </div>
             <span className="font-display font-semibold text-foreground text-sm">
-              Pakistan.com
+              Pakistan
             </span>
           </div>
           <StepIndicator current={2} total={3} />

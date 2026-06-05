@@ -30,15 +30,27 @@ export const Comment = IDL.Record({
   'createdAt' : Timestamp,
   'postId' : PostId,
 });
+export const NotificationType = IDL.Variant({
+  'retweet' : IDL.Null,
+  'like' : IDL.Null,
+  'comment' : IDL.Null,
+  'mention' : IDL.Null,
+  'follow' : IDL.Null,
+});
 export const UserRole = IDL.Variant({
   'admin' : IDL.Null,
   'user' : IDL.Null,
   'guest' : IDL.Null,
 });
 export const ExternalBlob = IDL.Vec(IDL.Nat8);
+export const PostPrivacy = IDL.Variant({
+  'followersOnly' : IDL.Null,
+  'public' : IDL.Null,
+});
 export const CreatePostInput = IDL.Record({
   'content' : IDL.Text,
   'imageBlob' : IDL.Opt(ExternalBlob),
+  'privacy' : IDL.Opt(PostPrivacy),
 });
 export const PostView = IDL.Record({
   'id' : PostId,
@@ -47,6 +59,8 @@ export const PostView = IDL.Record({
   'imageBlob' : IDL.Opt(ExternalBlob),
   'authorId' : UserId,
   'createdAt' : Timestamp,
+  'retweetCount' : IDL.Nat,
+  'privacy' : PostPrivacy,
   'commentCount' : IDL.Nat,
   'likedByMe' : IDL.Bool,
 });
@@ -63,6 +77,7 @@ export const ProfileView = IDL.Record({
   'username' : IDL.Text,
   'avatarBlob' : IDL.Opt(ExternalBlob),
   'createdAt' : Timestamp,
+  'isVerified' : IDL.Bool,
   'followerCount' : IDL.Nat,
   'followingCount' : IDL.Nat,
   'coverBlob' : IDL.Opt(ExternalBlob),
@@ -71,6 +86,84 @@ export const Page_1 = IDL.Record({
   'total' : IDL.Nat,
   'nextOffset' : IDL.Opt(IDL.Nat),
   'items' : IDL.Vec(PostView),
+});
+export const FlagStatus = IDL.Variant({
+  'resolved' : IDL.Null,
+  'pending' : IDL.Null,
+  'dismissed' : IDL.Null,
+});
+export const FlagTargetKind = IDL.Variant({
+  'post' : IDL.Null,
+  'user' : IDL.Null,
+  'comment' : IDL.Null,
+});
+export const FlagView = IDL.Record({
+  'id' : IDL.Nat,
+  'status' : FlagStatus,
+  'createdAt' : Timestamp,
+  'resolution' : IDL.Opt(IDL.Text),
+  'targetPrincipal' : IDL.Opt(UserId),
+  'reportedBy' : UserId,
+  'targetKind' : FlagTargetKind,
+  'targetId' : IDL.Nat,
+  'resolvedAt' : IDL.Opt(Timestamp),
+  'resolvedBy' : IDL.Opt(UserId),
+  'reason' : IDL.Text,
+});
+export const Mention = IDL.Record({
+  'mentionedUserId' : UserId,
+  'authorId' : UserId,
+  'createdAt' : Timestamp,
+  'postId' : PostId,
+});
+export const Page_3 = IDL.Record({
+  'total' : IDL.Nat,
+  'nextOffset' : IDL.Opt(IDL.Nat),
+  'items' : IDL.Vec(Mention),
+});
+export const AdminRole = IDL.Variant({
+  'moderator' : IDL.Null,
+  'owner' : IDL.Null,
+});
+export const NotificationView = IDL.Record({
+  'id' : IDL.Nat,
+  'notifType' : NotificationType,
+  'createdAt' : Timestamp,
+  'isRead' : IDL.Bool,
+  'actorId' : UserId,
+  'targetPostId' : IDL.Opt(PostId),
+  'recipientId' : UserId,
+  'targetUserId' : IDL.Opt(UserId),
+});
+export const Page_2 = IDL.Record({
+  'total' : IDL.Nat,
+  'nextOffset' : IDL.Opt(IDL.Nat),
+  'items' : IDL.Vec(NotificationView),
+});
+export const ActionKind = IDL.Variant({
+  'addModerator' : IDL.Null,
+  'removeComment' : IDL.Null,
+  'removeModerator' : IDL.Null,
+  'suspendUser' : IDL.Null,
+  'dismissFlag' : IDL.Null,
+  'removePost' : IDL.Null,
+  'resolveFlag' : IDL.Null,
+  'unsuspendUser' : IDL.Null,
+});
+export const ActivityLogView = IDL.Record({
+  'id' : IDL.Nat,
+  'action' : ActionKind,
+  'note' : IDL.Opt(IDL.Text),
+  'targetPrincipal' : IDL.Opt(UserId),
+  'performedBy' : UserId,
+  'timestamp' : Timestamp,
+  'targetId' : IDL.Opt(IDL.Nat),
+});
+export const RoleEntry = IDL.Record({
+  'grantedAt' : Timestamp,
+  'grantedBy' : UserId,
+  'userId' : UserId,
+  'role' : AdminRole,
 });
 export const Page = IDL.Record({
   'total' : IDL.Nat,
@@ -113,19 +206,49 @@ export const idlService = IDL.Service({
   '_immutableObjectStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
   '_initializeAccessControl' : IDL.Func([], [], []),
   'addComment' : IDL.Func([PostId, IDL.Text], [Comment], []),
+  'addModerator' : IDL.Func([UserId], [], []),
+  'addNotification' : IDL.Func(
+      [UserId, UserId, NotificationType, IDL.Opt(PostId), IDL.Opt(UserId)],
+      [],
+      [],
+    ),
+  'adminRemoveComment' : IDL.Func([CommentId, IDL.Opt(IDL.Text)], [], []),
+  'adminRemovePost' : IDL.Func([PostId, IDL.Opt(IDL.Text)], [], []),
+  'adminSetVerified' : IDL.Func([UserId, IDL.Bool], [], []),
+  'adminSuspendUser' : IDL.Func([UserId, IDL.Opt(IDL.Text)], [], []),
+  'adminUnsuspendUser' : IDL.Func([UserId, IDL.Opt(IDL.Text)], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+  'blockUser' : IDL.Func([UserId], [], []),
+  'claimOwnerRole' : IDL.Func([], [], []),
+  'clearAllNotifications' : IDL.Func([], [], []),
   'createPost' : IDL.Func([CreatePostInput], [PostView], []),
   'createProfile' : IDL.Func([CreateProfileInput], [ProfileView], []),
   'deleteComment' : IDL.Func([CommentId], [], []),
   'deletePost' : IDL.Func([PostId], [], []),
+  'dismissFlag' : IDL.Func([IDL.Nat, IDL.Opt(IDL.Text)], [], []),
+  'flagComment' : IDL.Func([CommentId, IDL.Text], [IDL.Nat], []),
+  'flagPost' : IDL.Func([PostId, IDL.Text], [IDL.Nat], []),
+  'flagUser' : IDL.Func([UserId, IDL.Text], [IDL.Nat], []),
   'followUser' : IDL.Func([UserId], [], []),
+  'getBlockedUsers' : IDL.Func([], [IDL.Vec(UserId)], ['query']),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(ProfileView)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getFeed' : IDL.Func([IDL.Nat, IDL.Nat], [Page_1], ['query']),
+  'getFlag' : IDL.Func([IDL.Nat], [IDL.Opt(FlagView)], ['query']),
   'getFollowers' : IDL.Func([UserId], [IDL.Vec(UserId)], ['query']),
   'getFollowing' : IDL.Func([UserId], [IDL.Vec(UserId)], ['query']),
   'getFollowingIds' : IDL.Func([], [IDL.Vec(UserId)], ['query']),
+  'getMentionsForUser' : IDL.Func(
+      [UserId, IDL.Nat, IDL.Nat],
+      [Page_3],
+      ['query'],
+    ),
+  'getMutedUsers' : IDL.Func([], [IDL.Vec(UserId)], ['query']),
+  'getMyAdminRole' : IDL.Func([], [IDL.Opt(AdminRole)], ['query']),
+  'getMyNotifications' : IDL.Func([IDL.Nat, IDL.Nat], [Page_2], []),
   'getMyProfile' : IDL.Func([], [IDL.Opt(ProfileView)], ['query']),
+  'getOwner' : IDL.Func([], [IDL.Opt(UserId)], ['query']),
+  'getPinnedPosts' : IDL.Func([UserId], [IDL.Vec(PostId)], ['query']),
   'getPost' : IDL.Func([PostId], [IDL.Opt(PostView)], ['query']),
   'getProfile' : IDL.Func([UserId], [IDL.Opt(ProfileView)], ['query']),
   'getProfileByUsername' : IDL.Func(
@@ -133,18 +256,38 @@ export const idlService = IDL.Service({
       [IDL.Opt(ProfileView)],
       ['query'],
     ),
+  'getUnreadCount' : IDL.Func([], [IDL.Nat], ['query']),
   'getUserProfile' : IDL.Func([UserId], [IDL.Opt(ProfileView)], ['query']),
+  'isBlocked' : IDL.Func([UserId], [IDL.Bool], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'isFollowing' : IDL.Func([UserId], [IDL.Bool], ['query']),
+  'isMuted' : IDL.Func([UserId], [IDL.Bool], ['query']),
+  'isUserSuspended' : IDL.Func([UserId], [IDL.Bool], ['query']),
+  'listActivityLog' : IDL.Func(
+      [IDL.Nat, IDL.Nat],
+      [IDL.Vec(ActivityLogView)],
+      ['query'],
+    ),
   'listAllPosts' : IDL.Func([IDL.Nat, IDL.Nat], [Page_1], ['query']),
   'listComments' : IDL.Func([PostId], [IDL.Vec(Comment)], ['query']),
+  'listFlags' : IDL.Func([IDL.Opt(FlagStatus)], [IDL.Vec(FlagView)], ['query']),
+  'listModerators' : IDL.Func([], [IDL.Vec(RoleEntry)], ['query']),
   'listPostsByUser' : IDL.Func([UserId, IDL.Nat, IDL.Nat], [Page_1], ['query']),
   'listProfiles' : IDL.Func([IDL.Nat, IDL.Nat], [Page], ['query']),
+  'markAllNotificationsRead' : IDL.Func([], [], []),
+  'markNotificationRead' : IDL.Func([IDL.Nat], [], []),
+  'muteUser' : IDL.Func([UserId], [], []),
+  'pinPost' : IDL.Func([PostId], [], []),
+  'removeModerator' : IDL.Func([UserId], [], []),
+  'resolveFlag' : IDL.Func([IDL.Nat, IDL.Opt(IDL.Text)], [], []),
   'saveCallerUserProfile' : IDL.Func([CreateProfileInput], [], []),
   'searchPosts' : IDL.Func([IDL.Text], [IDL.Vec(PostView)], ['query']),
   'searchUsers' : IDL.Func([IDL.Text], [IDL.Vec(ProfileView)], ['query']),
   'toggleLike' : IDL.Func([PostId], [IDL.Nat, IDL.Bool], []),
+  'unblockUser' : IDL.Func([UserId], [], []),
   'unfollowUser' : IDL.Func([UserId], [], []),
+  'unmuteUser' : IDL.Func([UserId], [], []),
+  'unpinPost' : IDL.Func([PostId], [], []),
   'updateProfile' : IDL.Func([UpdateProfileInput], [ProfileView], []),
 });
 
@@ -173,15 +316,27 @@ export const idlFactory = ({ IDL }) => {
     'createdAt' : Timestamp,
     'postId' : PostId,
   });
+  const NotificationType = IDL.Variant({
+    'retweet' : IDL.Null,
+    'like' : IDL.Null,
+    'comment' : IDL.Null,
+    'mention' : IDL.Null,
+    'follow' : IDL.Null,
+  });
   const UserRole = IDL.Variant({
     'admin' : IDL.Null,
     'user' : IDL.Null,
     'guest' : IDL.Null,
   });
   const ExternalBlob = IDL.Vec(IDL.Nat8);
+  const PostPrivacy = IDL.Variant({
+    'followersOnly' : IDL.Null,
+    'public' : IDL.Null,
+  });
   const CreatePostInput = IDL.Record({
     'content' : IDL.Text,
     'imageBlob' : IDL.Opt(ExternalBlob),
+    'privacy' : IDL.Opt(PostPrivacy),
   });
   const PostView = IDL.Record({
     'id' : PostId,
@@ -190,6 +345,8 @@ export const idlFactory = ({ IDL }) => {
     'imageBlob' : IDL.Opt(ExternalBlob),
     'authorId' : UserId,
     'createdAt' : Timestamp,
+    'retweetCount' : IDL.Nat,
+    'privacy' : PostPrivacy,
     'commentCount' : IDL.Nat,
     'likedByMe' : IDL.Bool,
   });
@@ -206,6 +363,7 @@ export const idlFactory = ({ IDL }) => {
     'username' : IDL.Text,
     'avatarBlob' : IDL.Opt(ExternalBlob),
     'createdAt' : Timestamp,
+    'isVerified' : IDL.Bool,
     'followerCount' : IDL.Nat,
     'followingCount' : IDL.Nat,
     'coverBlob' : IDL.Opt(ExternalBlob),
@@ -214,6 +372,81 @@ export const idlFactory = ({ IDL }) => {
     'total' : IDL.Nat,
     'nextOffset' : IDL.Opt(IDL.Nat),
     'items' : IDL.Vec(PostView),
+  });
+  const FlagStatus = IDL.Variant({
+    'resolved' : IDL.Null,
+    'pending' : IDL.Null,
+    'dismissed' : IDL.Null,
+  });
+  const FlagTargetKind = IDL.Variant({
+    'post' : IDL.Null,
+    'user' : IDL.Null,
+    'comment' : IDL.Null,
+  });
+  const FlagView = IDL.Record({
+    'id' : IDL.Nat,
+    'status' : FlagStatus,
+    'createdAt' : Timestamp,
+    'resolution' : IDL.Opt(IDL.Text),
+    'targetPrincipal' : IDL.Opt(UserId),
+    'reportedBy' : UserId,
+    'targetKind' : FlagTargetKind,
+    'targetId' : IDL.Nat,
+    'resolvedAt' : IDL.Opt(Timestamp),
+    'resolvedBy' : IDL.Opt(UserId),
+    'reason' : IDL.Text,
+  });
+  const Mention = IDL.Record({
+    'mentionedUserId' : UserId,
+    'authorId' : UserId,
+    'createdAt' : Timestamp,
+    'postId' : PostId,
+  });
+  const Page_3 = IDL.Record({
+    'total' : IDL.Nat,
+    'nextOffset' : IDL.Opt(IDL.Nat),
+    'items' : IDL.Vec(Mention),
+  });
+  const AdminRole = IDL.Variant({ 'moderator' : IDL.Null, 'owner' : IDL.Null });
+  const NotificationView = IDL.Record({
+    'id' : IDL.Nat,
+    'notifType' : NotificationType,
+    'createdAt' : Timestamp,
+    'isRead' : IDL.Bool,
+    'actorId' : UserId,
+    'targetPostId' : IDL.Opt(PostId),
+    'recipientId' : UserId,
+    'targetUserId' : IDL.Opt(UserId),
+  });
+  const Page_2 = IDL.Record({
+    'total' : IDL.Nat,
+    'nextOffset' : IDL.Opt(IDL.Nat),
+    'items' : IDL.Vec(NotificationView),
+  });
+  const ActionKind = IDL.Variant({
+    'addModerator' : IDL.Null,
+    'removeComment' : IDL.Null,
+    'removeModerator' : IDL.Null,
+    'suspendUser' : IDL.Null,
+    'dismissFlag' : IDL.Null,
+    'removePost' : IDL.Null,
+    'resolveFlag' : IDL.Null,
+    'unsuspendUser' : IDL.Null,
+  });
+  const ActivityLogView = IDL.Record({
+    'id' : IDL.Nat,
+    'action' : ActionKind,
+    'note' : IDL.Opt(IDL.Text),
+    'targetPrincipal' : IDL.Opt(UserId),
+    'performedBy' : UserId,
+    'timestamp' : Timestamp,
+    'targetId' : IDL.Opt(IDL.Nat),
+  });
+  const RoleEntry = IDL.Record({
+    'grantedAt' : Timestamp,
+    'grantedBy' : UserId,
+    'userId' : UserId,
+    'role' : AdminRole,
   });
   const Page = IDL.Record({
     'total' : IDL.Nat,
@@ -256,19 +489,49 @@ export const idlFactory = ({ IDL }) => {
     '_immutableObjectStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
     '_initializeAccessControl' : IDL.Func([], [], []),
     'addComment' : IDL.Func([PostId, IDL.Text], [Comment], []),
+    'addModerator' : IDL.Func([UserId], [], []),
+    'addNotification' : IDL.Func(
+        [UserId, UserId, NotificationType, IDL.Opt(PostId), IDL.Opt(UserId)],
+        [],
+        [],
+      ),
+    'adminRemoveComment' : IDL.Func([CommentId, IDL.Opt(IDL.Text)], [], []),
+    'adminRemovePost' : IDL.Func([PostId, IDL.Opt(IDL.Text)], [], []),
+    'adminSetVerified' : IDL.Func([UserId, IDL.Bool], [], []),
+    'adminSuspendUser' : IDL.Func([UserId, IDL.Opt(IDL.Text)], [], []),
+    'adminUnsuspendUser' : IDL.Func([UserId, IDL.Opt(IDL.Text)], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+    'blockUser' : IDL.Func([UserId], [], []),
+    'claimOwnerRole' : IDL.Func([], [], []),
+    'clearAllNotifications' : IDL.Func([], [], []),
     'createPost' : IDL.Func([CreatePostInput], [PostView], []),
     'createProfile' : IDL.Func([CreateProfileInput], [ProfileView], []),
     'deleteComment' : IDL.Func([CommentId], [], []),
     'deletePost' : IDL.Func([PostId], [], []),
+    'dismissFlag' : IDL.Func([IDL.Nat, IDL.Opt(IDL.Text)], [], []),
+    'flagComment' : IDL.Func([CommentId, IDL.Text], [IDL.Nat], []),
+    'flagPost' : IDL.Func([PostId, IDL.Text], [IDL.Nat], []),
+    'flagUser' : IDL.Func([UserId, IDL.Text], [IDL.Nat], []),
     'followUser' : IDL.Func([UserId], [], []),
+    'getBlockedUsers' : IDL.Func([], [IDL.Vec(UserId)], ['query']),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(ProfileView)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getFeed' : IDL.Func([IDL.Nat, IDL.Nat], [Page_1], ['query']),
+    'getFlag' : IDL.Func([IDL.Nat], [IDL.Opt(FlagView)], ['query']),
     'getFollowers' : IDL.Func([UserId], [IDL.Vec(UserId)], ['query']),
     'getFollowing' : IDL.Func([UserId], [IDL.Vec(UserId)], ['query']),
     'getFollowingIds' : IDL.Func([], [IDL.Vec(UserId)], ['query']),
+    'getMentionsForUser' : IDL.Func(
+        [UserId, IDL.Nat, IDL.Nat],
+        [Page_3],
+        ['query'],
+      ),
+    'getMutedUsers' : IDL.Func([], [IDL.Vec(UserId)], ['query']),
+    'getMyAdminRole' : IDL.Func([], [IDL.Opt(AdminRole)], ['query']),
+    'getMyNotifications' : IDL.Func([IDL.Nat, IDL.Nat], [Page_2], []),
     'getMyProfile' : IDL.Func([], [IDL.Opt(ProfileView)], ['query']),
+    'getOwner' : IDL.Func([], [IDL.Opt(UserId)], ['query']),
+    'getPinnedPosts' : IDL.Func([UserId], [IDL.Vec(PostId)], ['query']),
     'getPost' : IDL.Func([PostId], [IDL.Opt(PostView)], ['query']),
     'getProfile' : IDL.Func([UserId], [IDL.Opt(ProfileView)], ['query']),
     'getProfileByUsername' : IDL.Func(
@@ -276,22 +539,46 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Opt(ProfileView)],
         ['query'],
       ),
+    'getUnreadCount' : IDL.Func([], [IDL.Nat], ['query']),
     'getUserProfile' : IDL.Func([UserId], [IDL.Opt(ProfileView)], ['query']),
+    'isBlocked' : IDL.Func([UserId], [IDL.Bool], ['query']),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'isFollowing' : IDL.Func([UserId], [IDL.Bool], ['query']),
+    'isMuted' : IDL.Func([UserId], [IDL.Bool], ['query']),
+    'isUserSuspended' : IDL.Func([UserId], [IDL.Bool], ['query']),
+    'listActivityLog' : IDL.Func(
+        [IDL.Nat, IDL.Nat],
+        [IDL.Vec(ActivityLogView)],
+        ['query'],
+      ),
     'listAllPosts' : IDL.Func([IDL.Nat, IDL.Nat], [Page_1], ['query']),
     'listComments' : IDL.Func([PostId], [IDL.Vec(Comment)], ['query']),
+    'listFlags' : IDL.Func(
+        [IDL.Opt(FlagStatus)],
+        [IDL.Vec(FlagView)],
+        ['query'],
+      ),
+    'listModerators' : IDL.Func([], [IDL.Vec(RoleEntry)], ['query']),
     'listPostsByUser' : IDL.Func(
         [UserId, IDL.Nat, IDL.Nat],
         [Page_1],
         ['query'],
       ),
     'listProfiles' : IDL.Func([IDL.Nat, IDL.Nat], [Page], ['query']),
+    'markAllNotificationsRead' : IDL.Func([], [], []),
+    'markNotificationRead' : IDL.Func([IDL.Nat], [], []),
+    'muteUser' : IDL.Func([UserId], [], []),
+    'pinPost' : IDL.Func([PostId], [], []),
+    'removeModerator' : IDL.Func([UserId], [], []),
+    'resolveFlag' : IDL.Func([IDL.Nat, IDL.Opt(IDL.Text)], [], []),
     'saveCallerUserProfile' : IDL.Func([CreateProfileInput], [], []),
     'searchPosts' : IDL.Func([IDL.Text], [IDL.Vec(PostView)], ['query']),
     'searchUsers' : IDL.Func([IDL.Text], [IDL.Vec(ProfileView)], ['query']),
     'toggleLike' : IDL.Func([PostId], [IDL.Nat, IDL.Bool], []),
+    'unblockUser' : IDL.Func([UserId], [], []),
     'unfollowUser' : IDL.Func([UserId], [], []),
+    'unmuteUser' : IDL.Func([UserId], [], []),
+    'unpinPost' : IDL.Func([PostId], [], []),
     'updateProfile' : IDL.Func([UpdateProfileInput], [ProfileView], []),
   });
 };

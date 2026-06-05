@@ -46,6 +46,8 @@ module {
       imageBlob = post.imageBlob;
       likeCount = post.likeCount;
       commentCount = post.commentCount;
+      retweetCount = post.retweetCount;
+      privacy = post.privacy;
       createdAt = post.createdAt;
       likedByMe;
     };
@@ -65,6 +67,8 @@ module {
       var imageBlob = input.imageBlob;
       var likeCount = 0;
       var commentCount = 0;
+      var retweetCount = 0;
+      var privacy = switch (input.privacy) { case (?p) p; case null #public_ };
       createdAt = Time.now();
     };
     state.posts.add(id, post);

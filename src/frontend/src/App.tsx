@@ -1,10 +1,13 @@
 import { PageLoader } from "@/components/shared/LoadingSpinner";
+import SettingsPage from "@/pages/SettingsPage";
+import { useAuthStore } from "@/store/auth-store";
 import {
   Outlet,
   RouterProvider,
   createRootRoute,
   createRoute,
   createRouter,
+  redirect,
 } from "@tanstack/react-router";
 import { Suspense, lazy } from "react";
 
@@ -15,13 +18,9 @@ const ProfilePage = lazy(() => import("@/pages/ProfilePage"));
 const EditProfilePage = lazy(() => import("@/pages/EditProfilePage"));
 const PostDetailPage = lazy(() => import("@/pages/PostDetailPage"));
 const SignupPage = lazy(() => import("@/pages/SignupPage"));
-const OnboardingWelcomePage = lazy(
-  () => import("@/pages/OnboardingWelcomePage"),
-);
-const OnboardingProfilePage = lazy(
-  () => import("@/pages/OnboardingProfilePage"),
-);
-const OnboardingFollowPage = lazy(() => import("@/pages/OnboardingFollowPage"));
+const NotificationsPage = lazy(() => import("@/pages/NotificationsPage"));
+const ProfileSetupPage = lazy(() => import("@/pages/ProfileSetupPage"));
+const AdminPage = lazy(() => import("@/pages/AdminPage"));
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -34,6 +33,13 @@ const rootRoute = createRootRoute({
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
+  beforeLoad: () => {
+    const { user } = useAuthStore.getState();
+    // Authenticated users without a profile must complete setup first
+    if (user && !user.profile) {
+      throw redirect({ to: "/profile/setup" });
+    }
+  },
   component: HomePage,
 });
 
@@ -76,22 +82,28 @@ const signupRoute = createRoute({
   component: SignupPage,
 });
 
-const onboardingWelcomeRoute = createRoute({
+const profileSetupRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/onboarding/welcome",
-  component: OnboardingWelcomePage,
+  path: "/profile/setup",
+  component: ProfileSetupPage,
 });
 
-const onboardingProfileRoute = createRoute({
+const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/onboarding/profile",
-  component: OnboardingProfilePage,
+  path: "/settings",
+  component: SettingsPage,
 });
 
-const onboardingFollowRoute = createRoute({
+const notificationsRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/onboarding/follow",
-  component: OnboardingFollowPage,
+  path: "/notifications",
+  component: NotificationsPage,
+});
+
+const adminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/admin",
+  component: AdminPage,
 });
 
 const routeTree = rootRoute.addChildren([
@@ -100,11 +112,12 @@ const routeTree = rootRoute.addChildren([
   signupRoute,
   exploreRoute,
   editProfileRoute,
+  profileSetupRoute,
   profileRoute,
   postDetailRoute,
-  onboardingWelcomeRoute,
-  onboardingProfileRoute,
-  onboardingFollowRoute,
+  settingsRoute,
+  notificationsRoute,
+  adminRoute,
 ]);
 
 const router = createRouter({ routeTree });

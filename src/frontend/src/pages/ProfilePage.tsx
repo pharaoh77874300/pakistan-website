@@ -17,19 +17,182 @@ import {
   useFollowers,
   useFollowing,
   useIsFollowing,
+  usePinnedPosts,
+  usePost,
   useProfile,
   useUnfollowUser,
   useUserPosts,
 } from "@/hooks/use-backend";
-import type { UserId } from "@/types";
+import type { PostId, PostView, UserId } from "@/types";
 import { Principal } from "@icp-sdk/core/principal";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { Edit2, Grid3X3, UserCheck, UserPlus } from "lucide-react";
-import { motion } from "motion/react";
-import { useState } from "react";
+import {
+  BadgeCheck,
+  ChevronLeft,
+  ChevronRight,
+  Edit2,
+  Grid3X3,
+  Images,
+  MessageCircle,
+  Pin,
+  UserCheck,
+  UserPlus,
+  X,
+} from "lucide-react";
+import { Heart } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
+
+// ─── Lightbox ───────────────────────────────────────────────────────────────
+
+function LightboxModal({
+  images,
+  initialIndex,
+  onClose,
+}: {
+  images: PostView[];
+  initialIndex: number;
+  onClose: () => void;
+}) {
+  const [idx, setIdx] = useState(initialIndex);
+  const post = images[idx];
+  const timeAgo = (ts: bigint) => {
+    const diff = Date.now() - Number(ts) / 1_000_000;
+    if (diff < 60_000) return "just now";
+    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+    return new Date(Number(ts) / 1_000_000).toLocaleDateString();
+  };
+
+  const prev = useCallback(
+    () => setIdx((i) => (i - 1 + images.length) % images.length),
+    [images.length],
+  );
+  const next = useCallback(
+    () => setIdx((i) => (i + 1) % images.length),
+    [images.length],
+  );
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft") prev();
+      if (e.key === "ArrowRight") next();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose, prev, next]);
+
+  if (!post?.imageBlob) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-foreground/80 backdrop-blur-sm flex items-center justify-center p-4"
+        onClick={onClose}
+        data-ocid="profile.lightbox"
+      >
+        <motion.div
+          initial={{ scale: 0.92, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.92, opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="relative bg-card rounded-2xl overflow-hidden max-w-2xl w-full max-h-[90vh] flex flex-col shadow-elevated"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Close button */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-foreground/20 hover:bg-foreground/40 text-white flex items-center justify-center transition-smooth"
+            data-ocid="profile.lightbox.close_button"
+            aria-label="Close lightbox"
+          >
+            <X className="w-4 h-4" />
+          </button>
+
+          {/* Image */}
+          <div className="relative flex-1 overflow-hidden bg-muted min-h-0">
+            <img
+              src={post.imageBlob.getDirectURL()}
+              alt="Post content"
+              className="w-full object-contain max-h-[60vh]"
+            />
+            {/* Nav arrows */}
+            {images.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={prev}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-foreground/30 hover:bg-foreground/50 text-white flex items-center justify-center transition-smooth"
+                  data-ocid="profile.lightbox.prev_button"
+                  aria-label="Previous image"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={next}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-foreground/30 hover:bg-foreground/50 text-white flex items-center justify-center transition-smooth"
+                  data-ocid="profile.lightbox.next_button"
+                  aria-label="Next image"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Post meta */}
+          <div className="p-4 space-y-2 border-t border-border">
+            {post.content && (
+              <p className="text-sm text-foreground leading-relaxed line-clamp-3">
+                {post.content}
+              </p>
+            )}
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Heart className="w-3.5 h-3.5" />
+                {post.likeCount.toString()}
+              </span>
+              <span className="flex items-center gap-1">
+                <MessageCircle className="w-3.5 h-3.5" />
+                {post.commentCount.toString()}
+              </span>
+              <span className="ml-auto">{timeAgo(post.createdAt)}</span>
+            </div>
+            {images.length > 1 && (
+              <p className="text-xs text-muted-foreground text-center">
+                {idx + 1} / {images.length}
+              </p>
+            )}
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// ─── Pinned Post Item ────────────────────────────────────────────────────────
+
+function PinnedPostItem({ postId, index }: { postId: PostId; index: number }) {
+  const { data: post } = usePost(postId);
+  if (!post) return null;
+  return (
+    <div className="relative" data-ocid={`profile.pinned.item.${index}`}>
+      <div className="absolute -top-1 -left-1 z-10 bg-primary rounded-full p-0.5">
+        <Pin className="w-2.5 h-2.5 text-primary-foreground fill-current" />
+      </div>
+      <PostCard post={post} index={index} />
+    </div>
+  );
+}
 
 function ProfileSkeleton() {
   return (
@@ -183,6 +346,8 @@ export default function ProfilePage() {
   const [sheetType, setSheetType] = useState<"followers" | "following" | null>(
     null,
   );
+  const [activeTab, setActiveTab] = useState<"posts" | "media">("posts");
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   let principal: Principal | null = null;
   try {
@@ -194,11 +359,13 @@ export default function ProfilePage() {
   const isMe = identity?.getPrincipal().toString() === userId;
   const { data: profile, isLoading: profileLoading } = useProfile(principal);
   const { data: postsData, isLoading: postsLoading } = useUserPosts(principal);
+  const { data: pinnedPostIds } = usePinnedPosts(principal);
   const { data: isFollowing } = useIsFollowing(isMe ? null : principal);
   const { mutate: follow, isPending: isFollowPending } = useFollowUser();
   const { mutate: unfollow, isPending: isUnfollowPending } = useUnfollowUser();
 
   const posts = postsData?.items ?? [];
+  const mediaPosts = posts.filter((p) => !!p.imageBlob);
   const isBusy = isFollowPending || isUnfollowPending;
 
   const handleFollow = () => {
@@ -316,10 +483,17 @@ export default function ProfilePage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.1 }}
             >
-              <div className="flex items-center gap-2 mb-0.5">
+              <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                 <h1 className="font-display font-bold text-xl text-foreground leading-tight">
                   {profile.username}
                 </h1>
+                {profile.isVerified && (
+                  <BadgeCheck
+                    className="w-5 h-5 text-primary flex-shrink-0"
+                    aria-label="Verified"
+                    data-ocid="profile.verified_badge"
+                  />
+                )}
                 {isMe && (
                   <Badge
                     variant="secondary"
@@ -364,85 +538,202 @@ export default function ProfilePage() {
             </motion.div>
           </div>
 
-          {/* Posts Tab header */}
+          {/* Tab headers */}
           <div className="flex border-t border-border">
             <button
               type="button"
-              className="flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-semibold text-primary border-b-2 border-primary transition-smooth"
+              onClick={() => setActiveTab("posts")}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-semibold transition-smooth ${
+                activeTab === "posts"
+                  ? "text-primary border-b-2 border-primary"
+                  : "text-muted-foreground hover:text-foreground border-b-2 border-transparent"
+              }`}
               data-ocid="profile.posts_tab"
             >
               <Grid3X3 className="w-4 h-4" />
               Posts
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("media")}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-semibold transition-smooth ${
+                activeTab === "media"
+                  ? "text-primary border-b-2 border-primary"
+                  : "text-muted-foreground hover:text-foreground border-b-2 border-transparent"
+              }`}
+              data-ocid="profile.media_tab"
+            >
+              <Images className="w-4 h-4" />
+              Photos
+            </button>
           </div>
         </div>
 
-        {/* ── Posts Grid ─── */}
+        {/* ── Tab Content ─── */}
         <div className="bg-background min-h-[40vh]">
-          {postsLoading ? (
-            <div className="divide-y divide-border/40">
-              {Array.from({ length: 3 }).map((_, i) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: skeleton items have no stable ID
-                <div key={i} className="p-4 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="w-9 h-9 rounded-full" />
-                    <div className="space-y-1.5">
-                      <Skeleton className="h-3.5 w-28" />
-                      <Skeleton className="h-3 w-16" />
-                    </div>
-                  </div>
-                  <Skeleton className="h-16 w-full rounded-lg" />
-                </div>
-              ))}
-            </div>
-          ) : posts.length === 0 ? (
-            <div className="py-16">
-              <EmptyState
-                icon="✨"
-                title={isMe ? "Share your first post" : "No posts yet"}
-                description={
-                  isMe
-                    ? "Express yourself — your posts will appear here."
-                    : `${profile.username} hasn't posted anything yet.`
-                }
-                action={
-                  isMe
-                    ? {
-                        label: "Create post",
-                        onClick: () => navigate({ to: "/" }),
-                      }
-                    : undefined
-                }
-                data-ocid="profile.posts.empty_state"
-              />
-            </div>
-          ) : (
-            <motion.div
-              className="divide-y divide-border/40"
-              initial="hidden"
-              animate="visible"
-              variants={{
-                hidden: {},
-                visible: { transition: { staggerChildren: 0.06 } },
-              }}
-            >
-              {posts.map((post, i) => (
-                <motion.div
-                  key={post.id.toString()}
-                  variants={{
-                    hidden: { opacity: 0, y: 12 },
-                    visible: { opacity: 1, y: 0 },
-                  }}
-                  transition={{ duration: 0.28, ease: "easeOut" }}
-                  className="px-4 py-3"
-                  data-ocid={`profile.post.item.${i + 1}`}
+          {activeTab === "posts" && (
+            <>
+              {/* Pinned Posts */}
+              {pinnedPostIds && pinnedPostIds.length > 0 && (
+                <div
+                  className="px-4 pt-4 pb-2"
+                  data-ocid="profile.pinned_section"
                 >
-                  <PostCard post={post} index={i + 1} />
+                  <div className="flex items-center gap-1.5 mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    <Pin className="w-3 h-3" />
+                    Pinned Posts
+                  </div>
+                  <div className="space-y-3">
+                    {pinnedPostIds.map((pid, i) => (
+                      <PinnedPostItem
+                        key={pid.toString()}
+                        postId={pid}
+                        index={i + 1}
+                      />
+                    ))}
+                  </div>
+                  <div className="mt-4 border-t border-border/40" />
+                </div>
+              )}
+
+              {/* Regular Posts */}
+              {postsLoading ? (
+                <div className="divide-y divide-border/40">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: skeleton items have no stable ID
+                    <div key={i} className="p-4 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="w-9 h-9 rounded-full" />
+                        <div className="space-y-1.5">
+                          <Skeleton className="h-3.5 w-28" />
+                          <Skeleton className="h-3 w-16" />
+                        </div>
+                      </div>
+                      <Skeleton className="h-16 w-full rounded-lg" />
+                    </div>
+                  ))}
+                </div>
+              ) : posts.length === 0 ? (
+                <div className="py-16">
+                  <EmptyState
+                    icon="✨"
+                    title={isMe ? "Share your first post" : "No posts yet"}
+                    description={
+                      isMe
+                        ? "Express yourself — your posts will appear here."
+                        : `${profile.username} hasn't posted anything yet.`
+                    }
+                    action={
+                      isMe
+                        ? {
+                            label: "Create post",
+                            onClick: () => navigate({ to: "/" }),
+                          }
+                        : undefined
+                    }
+                    data-ocid="profile.posts.empty_state"
+                  />
+                </div>
+              ) : (
+                <motion.div
+                  className="divide-y divide-border/40"
+                  initial="hidden"
+                  animate="visible"
+                  variants={{
+                    hidden: {},
+                    visible: { transition: { staggerChildren: 0.06 } },
+                  }}
+                >
+                  {posts.map((post, i) => (
+                    <motion.div
+                      key={post.id.toString()}
+                      variants={{
+                        hidden: { opacity: 0, y: 12 },
+                        visible: { opacity: 1, y: 0 },
+                      }}
+                      transition={{ duration: 0.28, ease: "easeOut" }}
+                      className="px-4 py-3"
+                      data-ocid={`profile.post.item.${i + 1}`}
+                    >
+                      <PostCard post={post} index={i + 1} />
+                    </motion.div>
+                  ))}
                 </motion.div>
-              ))}
-            </motion.div>
+              )}
+            </>
+          )}
+
+          {activeTab === "media" && (
+            <div className="p-3">
+              {postsLoading ? (
+                <div className="grid grid-cols-3 gap-1">
+                  {Array.from({ length: 9 }).map((_, i) => (
+                    <Skeleton
+                      // biome-ignore lint/suspicious/noArrayIndexKey: skeleton grid
+                      key={i}
+                      className="aspect-square w-full rounded-lg"
+                    />
+                  ))}
+                </div>
+              ) : mediaPosts.length === 0 ? (
+                <div className="py-16">
+                  <EmptyState
+                    icon="🖼️"
+                    title="No photos yet"
+                    description={
+                      isMe
+                        ? "Your photo posts will appear here."
+                        : `${profile.username} hasn't shared any photos.`
+                    }
+                    data-ocid="profile.media.empty_state"
+                  />
+                </div>
+              ) : (
+                <motion.div
+                  className="grid grid-cols-3 gap-1"
+                  initial="hidden"
+                  animate="visible"
+                  variants={{
+                    hidden: {},
+                    visible: { transition: { staggerChildren: 0.04 } },
+                  }}
+                >
+                  {mediaPosts.map((post, i) => (
+                    <motion.button
+                      key={post.id.toString()}
+                      type="button"
+                      onClick={() => setLightboxIndex(i)}
+                      variants={{
+                        hidden: { opacity: 0, scale: 0.92 },
+                        visible: { opacity: 1, scale: 1 },
+                      }}
+                      transition={{ duration: 0.22, ease: "easeOut" }}
+                      className="relative aspect-square w-full rounded-lg overflow-hidden group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      data-ocid={`profile.media.item.${i + 1}`}
+                      aria-label={`Open photo ${i + 1}`}
+                    >
+                      <img
+                        src={post.imageBlob!.getDirectURL()}
+                        alt={`Post ${i + 1}`}
+                        className="w-full h-full object-cover transition-smooth group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/20 transition-smooth" />
+                    </motion.button>
+                  ))}
+                </motion.div>
+              )}
+            </div>
           )}
         </div>
+
+        {/* ── Lightbox ─── */}
+        {lightboxIndex !== null && (
+          <LightboxModal
+            images={mediaPosts}
+            initialIndex={lightboxIndex}
+            onClose={() => setLightboxIndex(null)}
+          />
+        )}
       </div>
 
       {/* ── Follower/Following Sheets ─── */}

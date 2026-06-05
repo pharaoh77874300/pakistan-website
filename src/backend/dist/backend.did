@@ -26,6 +26,13 @@ type UpdateProfileInput =
    username: opt text;
  };
 type Timestamp = int;
+type RoleEntry = 
+ record {
+   grantedAt: Timestamp;
+   grantedBy: UserId;
+   role: AdminRole;
+   userId: UserId;
+ };
 type ProfileView = 
  record {
    avatarBlob: opt ExternalBlob;
@@ -35,6 +42,7 @@ type ProfileView =
    followerCount: nat;
    followingCount: nat;
    id: UserId;
+   isVerified: bool;
    postCount: nat;
    username: text;
  };
@@ -48,8 +56,27 @@ type PostView =
    imageBlob: opt ExternalBlob;
    likeCount: nat;
    likedByMe: bool;
+   privacy: PostPrivacy;
+   retweetCount: nat;
+ };
+type PostPrivacy = 
+ variant {
+   followersOnly;
+   public;
  };
 type PostId = nat;
+type Page_3 = 
+ record {
+   items: vec Mention;
+   nextOffset: opt nat;
+   total: nat;
+ };
+type Page_2 = 
+ record {
+   items: vec NotificationView;
+   nextOffset: opt nat;
+   total: nat;
+ };
 type Page_1 = 
  record {
    items: vec PostView;
@@ -61,6 +88,58 @@ type Page =
    items: vec ProfileView;
    nextOffset: opt nat;
    total: nat;
+ };
+type NotificationView = 
+ record {
+   actorId: UserId;
+   createdAt: Timestamp;
+   id: nat;
+   isRead: bool;
+   notifType: NotificationType;
+   recipientId: UserId;
+   targetPostId: opt PostId;
+   targetUserId: opt UserId;
+ };
+type NotificationType = 
+ variant {
+   comment;
+   follow;
+   like;
+   mention;
+   retweet;
+ };
+type Mention = 
+ record {
+   authorId: UserId;
+   createdAt: Timestamp;
+   mentionedUserId: UserId;
+   postId: PostId;
+ };
+type FlagView = 
+ record {
+   createdAt: Timestamp;
+   id: nat;
+   reason: text;
+   reportedBy: UserId;
+   resolution: opt text;
+   resolvedAt: opt Timestamp;
+   resolvedBy: opt UserId;
+   status: FlagStatus;
+   targetId: nat;
+   targetKind: FlagTargetKind;
+   targetPrincipal: opt UserId;
+ };
+type FlagTargetKind = 
+ variant {
+   comment;
+   post;
+   user;
+ };
+type FlagStatus = 
+ variant {
+   dismissed;
+   pending;
+   resolved;
  };
 type ExternalBlob = blob;
 type CreateProfileInput = 
@@ -74,6 +153,7 @@ type CreatePostInput =
  record {
    content: text;
    imageBlob: opt ExternalBlob;
+   privacy: opt PostPrivacy;
  };
 type CommentId = nat;
 type Comment = 
@@ -83,6 +163,32 @@ type Comment =
    createdAt: Timestamp;
    id: CommentId;
    postId: PostId;
+ };
+type AdminRole = 
+ variant {
+   moderator;
+   owner;
+ };
+type ActivityLogView = 
+ record {
+   action: ActionKind;
+   id: nat;
+   note: opt text;
+   performedBy: UserId;
+   targetId: opt nat;
+   targetPrincipal: opt UserId;
+   timestamp: Timestamp;
+ };
+type ActionKind = 
+ variant {
+   addModerator;
+   dismissFlag;
+   removeComment;
+   removeModerator;
+   removePost;
+   resolveFlag;
+   suspendUser;
+   unsuspendUser;
  };
 service : {
   _immutableObjectStorageBlobsAreLive: (hashes: vec blob) -> (vec bool) query;
@@ -96,34 +202,75 @@ service : {
   _immutableObjectStorageUpdateGatewayPrincipals: () -> ();
   _initializeAccessControl: () -> ();
   addComment: (postId: PostId, content: text) -> (Comment);
+  addModerator: (target: UserId) -> ();
+  addNotification: (recipientId: UserId, actorId: UserId, notifType:
+   NotificationType, targetPostId: opt PostId, targetUserId: opt UserId) ->
+   ();
+  adminRemoveComment: (commentId: CommentId, note: opt text) -> ();
+  adminRemovePost: (postId: PostId, note: opt text) -> ();
+  adminSetVerified: (userId: UserId, verified: bool) -> ();
+  adminSuspendUser: (target: UserId, note: opt text) -> ();
+  adminUnsuspendUser: (target: UserId, note: opt text) -> ();
   assignCallerUserRole: (user: principal, role: UserRole) -> ();
+  blockUser: (targetId: UserId) -> ();
+  claimOwnerRole: () -> ();
+  clearAllNotifications: () -> ();
   createPost: (input: CreatePostInput) -> (PostView);
   createProfile: (input: CreateProfileInput) -> (ProfileView);
   deleteComment: (commentId: CommentId) -> ();
   deletePost: (postId: PostId) -> ();
+  dismissFlag: (flagId: nat, note: opt text) -> ();
+  flagComment: (commentId: CommentId, reason: text) -> (nat);
+  flagPost: (postId: PostId, reason: text) -> (nat);
+  flagUser: (target: UserId, reason: text) -> (nat);
   followUser: (target: UserId) -> ();
+  getBlockedUsers: () -> (vec UserId) query;
   getCallerUserProfile: () -> (opt ProfileView) query;
   getCallerUserRole: () -> (UserRole) query;
   getFeed: (offset: nat, limit: nat) -> (Page_1) query;
+  getFlag: (flagId: nat) -> (opt FlagView) query;
   getFollowers: (userId: UserId) -> (vec UserId) query;
   getFollowing: (userId: UserId) -> (vec UserId) query;
   getFollowingIds: () -> (vec UserId) query;
+  getMentionsForUser: (userId: UserId, offset: nat, limit: nat) ->
+   (Page_3) query;
+  getMutedUsers: () -> (vec UserId) query;
+  getMyAdminRole: () -> (opt AdminRole) query;
+  getMyNotifications: (offset: nat, limit: nat) -> (Page_2);
   getMyProfile: () -> (opt ProfileView) query;
+  getOwner: () -> (opt UserId) query;
+  getPinnedPosts: (userId: UserId) -> (vec PostId) query;
   getPost: (postId: PostId) -> (opt PostView) query;
   getProfile: (userId: UserId) -> (opt ProfileView) query;
   getProfileByUsername: (username: text) -> (opt ProfileView) query;
+  getUnreadCount: () -> (nat) query;
   getUserProfile: (user: UserId) -> (opt ProfileView) query;
+  isBlocked: (targetId: UserId) -> (bool) query;
   isCallerAdmin: () -> (bool) query;
   isFollowing: (target: UserId) -> (bool) query;
+  isMuted: (targetId: UserId) -> (bool) query;
+  isUserSuspended: (userId: UserId) -> (bool) query;
+  listActivityLog: (offset: nat, limit: nat) -> (vec ActivityLogView) query;
   listAllPosts: (offset: nat, limit: nat) -> (Page_1) query;
   listComments: (postId: PostId) -> (vec Comment) query;
+  listFlags: (status: opt FlagStatus) -> (vec FlagView) query;
+  listModerators: () -> (vec RoleEntry) query;
   listPostsByUser: (userId: UserId, offset: nat, limit: nat) ->
    (Page_1) query;
   listProfiles: (offset: nat, limit: nat) -> (Page) query;
+  markAllNotificationsRead: () -> ();
+  markNotificationRead: (notifId: nat) -> ();
+  muteUser: (targetId: UserId) -> ();
+  pinPost: (postId: PostId) -> ();
+  removeModerator: (target: UserId) -> ();
+  resolveFlag: (flagId: nat, note: opt text) -> ();
   saveCallerUserProfile: (input: CreateProfileInput) -> ();
   searchPosts: (keyword: text) -> (vec PostView) query;
   searchUsers: (keyword: text) -> (vec ProfileView) query;
   toggleLike: (postId: PostId) -> (nat, bool);
+  unblockUser: (targetId: UserId) -> ();
   unfollowUser: (target: UserId) -> ();
+  unmuteUser: (targetId: UserId) -> ();
+  unpinPost: (postId: PostId) -> ();
   updateProfile: (input: UpdateProfileInput) -> (ProfileView);
 }

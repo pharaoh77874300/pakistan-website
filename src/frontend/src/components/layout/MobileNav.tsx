@@ -1,10 +1,24 @@
+import { AdminRole } from "@/backend";
 import { useAuth } from "@/hooks/use-auth";
+import { useGetMyAdminRole } from "@/hooks/use-backend";
+import { useUnreadCount } from "@/hooks/use-notifications";
 import { Link, useLocation } from "@tanstack/react-router";
-import { Compass, Home, LogIn, User } from "lucide-react";
+import {
+  Bell,
+  Compass,
+  Home,
+  LogIn,
+  Settings,
+  Shield,
+  User,
+} from "lucide-react";
 
 export function MobileNav() {
   const location = useLocation();
   const { isAuthenticated, identity } = useAuth();
+  const { data: unreadCount = 0n } = useUnreadCount();
+  const { data: myRole } = useGetMyAdminRole();
+  const isAdmin = myRole === AdminRole.owner || myRole === AdminRole.moderator;
 
   const items = [
     {
@@ -24,12 +38,37 @@ export function MobileNav() {
     ...(isAuthenticated && identity
       ? [
           {
+            to: "/notifications",
+            label: "Alerts",
+            icon: Bell,
+            exact: false,
+            ocid: "mobile_nav.notifications_link",
+          },
+          {
             to: `/profile/${identity.getPrincipal().toString()}`,
             label: "Profile",
             icon: User,
             exact: false,
             ocid: "mobile_nav.profile_link",
           },
+          {
+            to: "/settings",
+            label: "Settings",
+            icon: Settings,
+            exact: false,
+            ocid: "mobile_nav.settings_link",
+          },
+          ...(isAdmin
+            ? [
+                {
+                  to: "/admin",
+                  label: "Admin",
+                  icon: Shield,
+                  exact: false,
+                  ocid: "mobile_nav.admin_link",
+                },
+              ]
+            : []),
         ]
       : [
           {
@@ -59,7 +98,14 @@ export function MobileNav() {
             }`}
             data-ocid={item.ocid}
           >
-            <item.icon className="w-5 h-5" />
+            <div className="relative">
+              <item.icon className="w-5 h-5" />
+              {item.to === "/notifications" && unreadCount > 0n && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center font-bold">
+                  {unreadCount > 9n ? "9+" : unreadCount.toString()}
+                </span>
+              )}
+            </div>
             <span className="text-[10px] font-medium">{item.label}</span>
           </Link>
         );
