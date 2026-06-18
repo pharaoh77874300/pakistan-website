@@ -3,22 +3,30 @@ import AdminLib "../lib/admin";
 import AdminTypes "../types/admin";
 import Common "../types/common";
 import Runtime "mo:core/Runtime";
+import Principal "mo:core/Principal";
 
 mixin (
   accessControlState : AccessControl.AccessControlState,
   adminState         : AdminLib.State,
 ) {
-  // ── Owner bootstrap ────────────────────────────────────────────────────────
-
-  /// Claim the owner role. Must be called once by the deployer after deploy.
-  public shared ({ caller }) func claimOwnerRole() : async () {
-    ignore accessControlState;
-    AdminLib.claimOwner(adminState, caller);
-  };
+  // ── Owner info ─────────────────────────────────────────────────────────────
 
   public query func getOwner() : async ?Common.UserId {
     ignore accessControlState;
     AdminLib.getOwner(adminState);
+  };
+
+  /// Claim the owner (super admin) role.
+  /// The first authenticated caller to invoke this becomes the permanent owner.
+  /// Returns true on success, false if an owner already exists.
+  /// Claim the owner (super admin) role.
+  /// The first authenticated caller becomes the permanent owner.
+  /// Idempotent: calling again as the existing owner returns true.
+  /// Returns false if a different owner has already claimed the role.
+  public shared ({ caller }) func claimOwner() : async Bool {
+    ignore accessControlState;
+    if (caller == Principal.fromText("2vxsx-fae")) Runtime.trap("Anonymous principal cannot claim owner");
+    AdminLib.claimOwner(adminState, caller);
   };
 
   // ── Role management ────────────────────────────────────────────────────────
@@ -42,9 +50,13 @@ mixin (
 
   public query ({ caller }) func getMyAdminRole() : async ?AdminTypes.AdminRole {
     ignore accessControlState;
-    if (AdminLib.isOwner(adminState, caller)) {
-      ?#owner;
-    } else if (AdminLib.isModerator(adminState, caller)) {
+    switch (AdminLib.getOwner(adminState)) {
+      case (?owner) {
+        if (owner == caller) { return ?#owner };
+      };
+      case null {};
+    };
+    if (AdminLib.isModerator(adminState, caller)) {
       ?#moderator;
     } else {
       null;
@@ -100,7 +112,7 @@ mixin (
 
   // ── Moderation actions ────────────────────────────────────────────────────
 
-  /// Owner or moderator: remove (hide) a post.
+  /// Super-admin-only: remove (hide) a post.
   public shared ({ caller }) func adminRemovePost(
     postId : Common.PostId,
     note   : ?Text,
@@ -109,7 +121,7 @@ mixin (
     AdminLib.removePost(adminState, caller, postId, note);
   };
 
-  /// Owner or moderator: remove a comment.
+  /// Super-admin-only: remove a comment.
   public shared ({ caller }) func adminRemoveComment(
     commentId : Common.CommentId,
     note      : ?Text,
@@ -118,7 +130,7 @@ mixin (
     AdminLib.removeComment(adminState, caller, commentId, note);
   };
 
-  /// Owner or moderator: suspend a user account.
+  /// Super-admin-only: suspend a user account.
   public shared ({ caller }) func adminSuspendUser(
     target : Common.UserId,
     note   : ?Text,
@@ -127,7 +139,7 @@ mixin (
     AdminLib.suspendUser(adminState, caller, target, note);
   };
 
-  /// Owner or moderator: unsuspend a user account.
+  /// Super-admin-only: unsuspend a user account.
   public shared ({ caller }) func adminUnsuspendUser(
     target : Common.UserId,
     note   : ?Text,
@@ -170,5 +182,54 @@ mixin (
     ignore accessControlState;
     if (not AdminLib.isAdminOrOwner(adminState, caller)) Runtime.trap("Not authorized");
     AdminLib.listActivityLog(adminState, offset, limit);
+  };
+
+  // ── Moderator invite links ────────────────────────────────────────────────
+
+  /// Owner-only: generate a new single-use moderator invite link.
+  /// The caller must supply a unique opaque code (UUID recommended).
+  /// Returns the invite metadata including expiration date.
+  public shared ({ caller }) func createModeratorInvite(
+    code : Text,
+  ) : async AdminTypes.InviteView {
+    ignore accessControlState;
+    if (caller == Principal.fromText("2vxsx-fae")) Runtime.trap("Anonymous principal cannot create invites");
+    AdminLib.createInvite(adminState, caller, code);
+  };
+
+  /// Any II-authenticated (non-anonymous) user: claim a moderator invite.
+  /// Calling this with a valid, unclaimed, unexpired code grants the
+  /// caller the moderator role immediately.
+  public shared ({ caller }) func claimModeratorInvite(
+    code : Text,
+  ) : async Bool {
+    ignore accessControlState;
+    if (caller == Principal.fromText("2vxsx-fae")) Runtime.trap("Anonymous principal cannot claim invites");
+    AdminLib.claimInvite(adminState, caller, code);
+  };
+
+  /// Owner-only: revoke a pending invite before it is claimed.
+  public shared ({ caller }) func revokeModeratorInvite(
+    code : Text,
+  ) : async Bool {
+    ignore accessControlState;
+    AdminLib.revokeInvite(adminState, caller, code);
+  };
+
+  /// Owner-only: list invite links.
+  /// Pass pendingOnly = true to see only unclaimed, unexpired invites.
+  public query ({ caller }) func listModeratorInvites(
+    pendingOnly : Bool,
+  ) : async [AdminTypes.InviteView] {
+    ignore accessControlState;
+    AdminLib.listInvites(adminState, caller, pendingOnly);
+  };
+
+  /// Public: look up a single invite by code (for the claim page).
+  public query func getModeratorInvite(
+    code : Text,
+  ) : async ?AdminTypes.InviteView {
+    ignore accessControlState;
+    AdminLib.getInviteByCode(adminState, code);
   };
 };

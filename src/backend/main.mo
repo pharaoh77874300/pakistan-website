@@ -17,9 +17,10 @@ import NotificationsMixin "mixins/notifications-api";
 import ModerationMixin "mixins/moderation-api";
 import PinnedMixin "mixins/pinned-api";
 import MentionsMixin "mixins/mentions-api";
+import TfaLib "lib/tfa";
+import TfaMixin "mixins/tfa-api";
 import AdminLib "lib/admin";
 import AdminMixin "mixins/admin-api";
-
 
 
 actor {
@@ -38,8 +39,10 @@ actor {
   let mentionsState = MentionsLib.initState();
 
   let adminState = AdminLib.initState();
+  let tfaState = TfaLib.initState();
 
   include AdminMixin(accessControlState, adminState);
+  include TfaMixin(accessControlState, adminState, tfaState);
   include ProfilesMixin(accessControlState, profileState);
   include PostsMixin(accessControlState, postState, socialState, profileState);
   include EngagementMixin(accessControlState, engagementState, postState);

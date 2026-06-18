@@ -1,3 +1,14 @@
+type http_request_result = 
+ record {
+   body: blob;
+   headers: vec http_header;
+   status: nat;
+ };
+type http_header = 
+ record {
+   name: text;
+   value: text;
+ };
 type _ImmutableObjectStorageRefillResult = 
  record {
    success: opt bool;
@@ -20,10 +31,23 @@ type UserRole =
 type UserId = principal;
 type UpdateProfileInput = 
  record {
+   avatar3dConfig: opt text;
    avatarBlob: opt ExternalBlob;
+   avatarType: opt text;
    bio: opt text;
    coverBlob: opt ExternalBlob;
    username: opt text;
+ };
+type TransformationOutput = 
+ record {
+   body: blob;
+   headers: vec http_header;
+   status: nat;
+ };
+type TransformationInput = 
+ record {
+   context: blob;
+   response: http_request_result;
  };
 type Timestamp = int;
 type RoleEntry = 
@@ -35,7 +59,9 @@ type RoleEntry =
  };
 type ProfileView = 
  record {
+   avatar3dConfig: opt text;
    avatarBlob: opt ExternalBlob;
+   avatarType: text;
    bio: text;
    coverBlob: opt ExternalBlob;
    createdAt: Timestamp;
@@ -115,6 +141,29 @@ type Mention =
    mentionedUserId: UserId;
    postId: PostId;
  };
+type LockoutStatus = 
+ record {
+   failedCount: nat;
+   locked: bool;
+   lockedUntil: opt Timestamp;
+ };
+type InviteView = 
+ record {
+   claimedAt: opt Timestamp;
+   claimedBy: opt UserId;
+   code: text;
+   createdAt: Timestamp;
+   createdBy: UserId;
+   expiresAt: Timestamp;
+   status: InviteStatus;
+ };
+type InviteStatus = 
+ variant {
+   claimed;
+   expired;
+   pending;
+   revoked;
+ };
 type FlagView = 
  record {
    createdAt: Timestamp;
@@ -144,7 +193,9 @@ type FlagStatus =
 type ExternalBlob = blob;
 type CreateProfileInput = 
  record {
+   avatar3dConfig: opt text;
    avatarBlob: opt ExternalBlob;
+   avatarType: opt text;
    bio: text;
    coverBlob: opt ExternalBlob;
    username: text;
@@ -182,12 +233,19 @@ type ActivityLogView =
 type ActionKind = 
  variant {
    addModerator;
+   claimOwner;
    dismissFlag;
+   inviteClaimed;
+   inviteRevoked;
    removeComment;
    removeModerator;
    removePost;
    resolveFlag;
    suspendUser;
+   tfaFailure;
+   tfaLockout;
+   tfaResend;
+   tfaSuccess;
    unsuspendUser;
  };
 service : {
@@ -206,15 +264,24 @@ service : {
   addNotification: (recipientId: UserId, actorId: UserId, notifType:
    NotificationType, targetPostId: opt PostId, targetUserId: opt UserId) ->
    ();
+  adminGetMyTelegramChatId: () -> (opt text);
+  adminGetTelegramBotToken: () -> (opt text);
+  adminGetTfaLockoutStatus: () -> (LockoutStatus);
+  adminRegisterTelegramChatId: (chatId: text) -> ();
   adminRemoveComment: (commentId: CommentId, note: opt text) -> ();
   adminRemovePost: (postId: PostId, note: opt text) -> ();
+  adminRequestTfaCode: () -> (text);
+  adminSetTelegramBotToken: (token: text) -> ();
   adminSetVerified: (userId: UserId, verified: bool) -> ();
   adminSuspendUser: (target: UserId, note: opt text) -> ();
   adminUnsuspendUser: (target: UserId, note: opt text) -> ();
+  adminVerifyTfaCode: (code: text) -> (bool);
   assignCallerUserRole: (user: principal, role: UserRole) -> ();
   blockUser: (targetId: UserId) -> ();
-  claimOwnerRole: () -> ();
+  claimModeratorInvite: (code: text) -> (bool);
+  claimOwner: () -> (bool);
   clearAllNotifications: () -> ();
+  createModeratorInvite: (code: text) -> (InviteView);
   createPost: (input: CreatePostInput) -> (PostView);
   createProfile: (input: CreateProfileInput) -> (ProfileView);
   deleteComment: (commentId: CommentId) -> ();
@@ -234,6 +301,7 @@ service : {
   getFollowingIds: () -> (vec UserId) query;
   getMentionsForUser: (userId: UserId, offset: nat, limit: nat) ->
    (Page_3) query;
+  getModeratorInvite: (code: text) -> (opt InviteView) query;
   getMutedUsers: () -> (vec UserId) query;
   getMyAdminRole: () -> (opt AdminRole) query;
   getMyNotifications: (offset: nat, limit: nat) -> (Page_2);
@@ -254,6 +322,7 @@ service : {
   listAllPosts: (offset: nat, limit: nat) -> (Page_1) query;
   listComments: (postId: PostId) -> (vec Comment) query;
   listFlags: (status: opt FlagStatus) -> (vec FlagView) query;
+  listModeratorInvites: (pendingOnly: bool) -> (vec InviteView) query;
   listModerators: () -> (vec RoleEntry) query;
   listPostsByUser: (userId: UserId, offset: nat, limit: nat) ->
    (Page_1) query;
@@ -264,10 +333,13 @@ service : {
   pinPost: (postId: PostId) -> ();
   removeModerator: (target: UserId) -> ();
   resolveFlag: (flagId: nat, note: opt text) -> ();
+  revokeModeratorInvite: (code: text) -> (bool);
   saveCallerUserProfile: (input: CreateProfileInput) -> ();
   searchPosts: (keyword: text) -> (vec PostView) query;
   searchUsers: (keyword: text) -> (vec ProfileView) query;
   toggleLike: (postId: PostId) -> (nat, bool);
+  transformWrapper: (input: TransformationInput) ->
+   (TransformationOutput) query;
   unblockUser: (targetId: UserId) -> ();
   unfollowUser: (target: UserId) -> ();
   unmuteUser: (targetId: UserId) -> ();

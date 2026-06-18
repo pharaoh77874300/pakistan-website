@@ -37,10 +37,30 @@ export const NotificationType = IDL.Variant({
   'mention' : IDL.Null,
   'follow' : IDL.Null,
 });
+export const LockoutStatus = IDL.Record({
+  'failedCount' : IDL.Nat,
+  'locked' : IDL.Bool,
+  'lockedUntil' : IDL.Opt(Timestamp),
+});
 export const UserRole = IDL.Variant({
   'admin' : IDL.Null,
   'user' : IDL.Null,
   'guest' : IDL.Null,
+});
+export const InviteStatus = IDL.Variant({
+  'revoked' : IDL.Null,
+  'expired' : IDL.Null,
+  'pending' : IDL.Null,
+  'claimed' : IDL.Null,
+});
+export const InviteView = IDL.Record({
+  'status' : InviteStatus,
+  'expiresAt' : Timestamp,
+  'code' : IDL.Text,
+  'createdAt' : Timestamp,
+  'createdBy' : UserId,
+  'claimedAt' : IDL.Opt(Timestamp),
+  'claimedBy' : IDL.Opt(UserId),
 });
 export const ExternalBlob = IDL.Vec(IDL.Nat8);
 export const PostPrivacy = IDL.Variant({
@@ -68,6 +88,8 @@ export const CreateProfileInput = IDL.Record({
   'bio' : IDL.Text,
   'username' : IDL.Text,
   'avatarBlob' : IDL.Opt(ExternalBlob),
+  'avatarType' : IDL.Opt(IDL.Text),
+  'avatar3dConfig' : IDL.Opt(IDL.Text),
   'coverBlob' : IDL.Opt(ExternalBlob),
 });
 export const ProfileView = IDL.Record({
@@ -76,8 +98,10 @@ export const ProfileView = IDL.Record({
   'postCount' : IDL.Nat,
   'username' : IDL.Text,
   'avatarBlob' : IDL.Opt(ExternalBlob),
+  'avatarType' : IDL.Text,
   'createdAt' : Timestamp,
   'isVerified' : IDL.Bool,
+  'avatar3dConfig' : IDL.Opt(IDL.Text),
   'followerCount' : IDL.Nat,
   'followingCount' : IDL.Nat,
   'coverBlob' : IDL.Opt(ExternalBlob),
@@ -142,11 +166,18 @@ export const Page_2 = IDL.Record({
 });
 export const ActionKind = IDL.Variant({
   'addModerator' : IDL.Null,
+  'inviteRevoked' : IDL.Null,
   'removeComment' : IDL.Null,
+  'tfaResend' : IDL.Null,
+  'tfaSuccess' : IDL.Null,
   'removeModerator' : IDL.Null,
+  'claimOwner' : IDL.Null,
+  'inviteClaimed' : IDL.Null,
   'suspendUser' : IDL.Null,
+  'tfaFailure' : IDL.Null,
   'dismissFlag' : IDL.Null,
   'removePost' : IDL.Null,
+  'tfaLockout' : IDL.Null,
   'resolveFlag' : IDL.Null,
   'unsuspendUser' : IDL.Null,
 });
@@ -170,10 +201,30 @@ export const Page = IDL.Record({
   'nextOffset' : IDL.Opt(IDL.Nat),
   'items' : IDL.Vec(ProfileView),
 });
+export const http_header = IDL.Record({
+  'value' : IDL.Text,
+  'name' : IDL.Text,
+});
+export const http_request_result = IDL.Record({
+  'status' : IDL.Nat,
+  'body' : IDL.Vec(IDL.Nat8),
+  'headers' : IDL.Vec(http_header),
+});
+export const TransformationInput = IDL.Record({
+  'context' : IDL.Vec(IDL.Nat8),
+  'response' : http_request_result,
+});
+export const TransformationOutput = IDL.Record({
+  'status' : IDL.Nat,
+  'body' : IDL.Vec(IDL.Nat8),
+  'headers' : IDL.Vec(http_header),
+});
 export const UpdateProfileInput = IDL.Record({
   'bio' : IDL.Opt(IDL.Text),
   'username' : IDL.Opt(IDL.Text),
   'avatarBlob' : IDL.Opt(ExternalBlob),
+  'avatarType' : IDL.Opt(IDL.Text),
+  'avatar3dConfig' : IDL.Opt(IDL.Text),
   'coverBlob' : IDL.Opt(ExternalBlob),
 });
 
@@ -212,15 +263,24 @@ export const idlService = IDL.Service({
       [],
       [],
     ),
+  'adminGetMyTelegramChatId' : IDL.Func([], [IDL.Opt(IDL.Text)], []),
+  'adminGetTelegramBotToken' : IDL.Func([], [IDL.Opt(IDL.Text)], []),
+  'adminGetTfaLockoutStatus' : IDL.Func([], [LockoutStatus], []),
+  'adminRegisterTelegramChatId' : IDL.Func([IDL.Text], [], []),
   'adminRemoveComment' : IDL.Func([CommentId, IDL.Opt(IDL.Text)], [], []),
   'adminRemovePost' : IDL.Func([PostId, IDL.Opt(IDL.Text)], [], []),
+  'adminRequestTfaCode' : IDL.Func([], [IDL.Text], []),
+  'adminSetTelegramBotToken' : IDL.Func([IDL.Text], [], []),
   'adminSetVerified' : IDL.Func([UserId, IDL.Bool], [], []),
   'adminSuspendUser' : IDL.Func([UserId, IDL.Opt(IDL.Text)], [], []),
   'adminUnsuspendUser' : IDL.Func([UserId, IDL.Opt(IDL.Text)], [], []),
+  'adminVerifyTfaCode' : IDL.Func([IDL.Text], [IDL.Bool], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'blockUser' : IDL.Func([UserId], [], []),
-  'claimOwnerRole' : IDL.Func([], [], []),
+  'claimModeratorInvite' : IDL.Func([IDL.Text], [IDL.Bool], []),
+  'claimOwner' : IDL.Func([], [IDL.Bool], []),
   'clearAllNotifications' : IDL.Func([], [], []),
+  'createModeratorInvite' : IDL.Func([IDL.Text], [InviteView], []),
   'createPost' : IDL.Func([CreatePostInput], [PostView], []),
   'createProfile' : IDL.Func([CreateProfileInput], [ProfileView], []),
   'deleteComment' : IDL.Func([CommentId], [], []),
@@ -243,6 +303,7 @@ export const idlService = IDL.Service({
       [Page_3],
       ['query'],
     ),
+  'getModeratorInvite' : IDL.Func([IDL.Text], [IDL.Opt(InviteView)], ['query']),
   'getMutedUsers' : IDL.Func([], [IDL.Vec(UserId)], ['query']),
   'getMyAdminRole' : IDL.Func([], [IDL.Opt(AdminRole)], ['query']),
   'getMyNotifications' : IDL.Func([IDL.Nat, IDL.Nat], [Page_2], []),
@@ -271,6 +332,11 @@ export const idlService = IDL.Service({
   'listAllPosts' : IDL.Func([IDL.Nat, IDL.Nat], [Page_1], ['query']),
   'listComments' : IDL.Func([PostId], [IDL.Vec(Comment)], ['query']),
   'listFlags' : IDL.Func([IDL.Opt(FlagStatus)], [IDL.Vec(FlagView)], ['query']),
+  'listModeratorInvites' : IDL.Func(
+      [IDL.Bool],
+      [IDL.Vec(InviteView)],
+      ['query'],
+    ),
   'listModerators' : IDL.Func([], [IDL.Vec(RoleEntry)], ['query']),
   'listPostsByUser' : IDL.Func([UserId, IDL.Nat, IDL.Nat], [Page_1], ['query']),
   'listProfiles' : IDL.Func([IDL.Nat, IDL.Nat], [Page], ['query']),
@@ -280,10 +346,16 @@ export const idlService = IDL.Service({
   'pinPost' : IDL.Func([PostId], [], []),
   'removeModerator' : IDL.Func([UserId], [], []),
   'resolveFlag' : IDL.Func([IDL.Nat, IDL.Opt(IDL.Text)], [], []),
+  'revokeModeratorInvite' : IDL.Func([IDL.Text], [IDL.Bool], []),
   'saveCallerUserProfile' : IDL.Func([CreateProfileInput], [], []),
   'searchPosts' : IDL.Func([IDL.Text], [IDL.Vec(PostView)], ['query']),
   'searchUsers' : IDL.Func([IDL.Text], [IDL.Vec(ProfileView)], ['query']),
   'toggleLike' : IDL.Func([PostId], [IDL.Nat, IDL.Bool], []),
+  'transformWrapper' : IDL.Func(
+      [TransformationInput],
+      [TransformationOutput],
+      ['query'],
+    ),
   'unblockUser' : IDL.Func([UserId], [], []),
   'unfollowUser' : IDL.Func([UserId], [], []),
   'unmuteUser' : IDL.Func([UserId], [], []),
@@ -323,10 +395,30 @@ export const idlFactory = ({ IDL }) => {
     'mention' : IDL.Null,
     'follow' : IDL.Null,
   });
+  const LockoutStatus = IDL.Record({
+    'failedCount' : IDL.Nat,
+    'locked' : IDL.Bool,
+    'lockedUntil' : IDL.Opt(Timestamp),
+  });
   const UserRole = IDL.Variant({
     'admin' : IDL.Null,
     'user' : IDL.Null,
     'guest' : IDL.Null,
+  });
+  const InviteStatus = IDL.Variant({
+    'revoked' : IDL.Null,
+    'expired' : IDL.Null,
+    'pending' : IDL.Null,
+    'claimed' : IDL.Null,
+  });
+  const InviteView = IDL.Record({
+    'status' : InviteStatus,
+    'expiresAt' : Timestamp,
+    'code' : IDL.Text,
+    'createdAt' : Timestamp,
+    'createdBy' : UserId,
+    'claimedAt' : IDL.Opt(Timestamp),
+    'claimedBy' : IDL.Opt(UserId),
   });
   const ExternalBlob = IDL.Vec(IDL.Nat8);
   const PostPrivacy = IDL.Variant({
@@ -354,6 +446,8 @@ export const idlFactory = ({ IDL }) => {
     'bio' : IDL.Text,
     'username' : IDL.Text,
     'avatarBlob' : IDL.Opt(ExternalBlob),
+    'avatarType' : IDL.Opt(IDL.Text),
+    'avatar3dConfig' : IDL.Opt(IDL.Text),
     'coverBlob' : IDL.Opt(ExternalBlob),
   });
   const ProfileView = IDL.Record({
@@ -362,8 +456,10 @@ export const idlFactory = ({ IDL }) => {
     'postCount' : IDL.Nat,
     'username' : IDL.Text,
     'avatarBlob' : IDL.Opt(ExternalBlob),
+    'avatarType' : IDL.Text,
     'createdAt' : Timestamp,
     'isVerified' : IDL.Bool,
+    'avatar3dConfig' : IDL.Opt(IDL.Text),
     'followerCount' : IDL.Nat,
     'followingCount' : IDL.Nat,
     'coverBlob' : IDL.Opt(ExternalBlob),
@@ -425,11 +521,18 @@ export const idlFactory = ({ IDL }) => {
   });
   const ActionKind = IDL.Variant({
     'addModerator' : IDL.Null,
+    'inviteRevoked' : IDL.Null,
     'removeComment' : IDL.Null,
+    'tfaResend' : IDL.Null,
+    'tfaSuccess' : IDL.Null,
     'removeModerator' : IDL.Null,
+    'claimOwner' : IDL.Null,
+    'inviteClaimed' : IDL.Null,
     'suspendUser' : IDL.Null,
+    'tfaFailure' : IDL.Null,
     'dismissFlag' : IDL.Null,
     'removePost' : IDL.Null,
+    'tfaLockout' : IDL.Null,
     'resolveFlag' : IDL.Null,
     'unsuspendUser' : IDL.Null,
   });
@@ -453,10 +556,27 @@ export const idlFactory = ({ IDL }) => {
     'nextOffset' : IDL.Opt(IDL.Nat),
     'items' : IDL.Vec(ProfileView),
   });
+  const http_header = IDL.Record({ 'value' : IDL.Text, 'name' : IDL.Text });
+  const http_request_result = IDL.Record({
+    'status' : IDL.Nat,
+    'body' : IDL.Vec(IDL.Nat8),
+    'headers' : IDL.Vec(http_header),
+  });
+  const TransformationInput = IDL.Record({
+    'context' : IDL.Vec(IDL.Nat8),
+    'response' : http_request_result,
+  });
+  const TransformationOutput = IDL.Record({
+    'status' : IDL.Nat,
+    'body' : IDL.Vec(IDL.Nat8),
+    'headers' : IDL.Vec(http_header),
+  });
   const UpdateProfileInput = IDL.Record({
     'bio' : IDL.Opt(IDL.Text),
     'username' : IDL.Opt(IDL.Text),
     'avatarBlob' : IDL.Opt(ExternalBlob),
+    'avatarType' : IDL.Opt(IDL.Text),
+    'avatar3dConfig' : IDL.Opt(IDL.Text),
     'coverBlob' : IDL.Opt(ExternalBlob),
   });
   
@@ -495,15 +615,24 @@ export const idlFactory = ({ IDL }) => {
         [],
         [],
       ),
+    'adminGetMyTelegramChatId' : IDL.Func([], [IDL.Opt(IDL.Text)], []),
+    'adminGetTelegramBotToken' : IDL.Func([], [IDL.Opt(IDL.Text)], []),
+    'adminGetTfaLockoutStatus' : IDL.Func([], [LockoutStatus], []),
+    'adminRegisterTelegramChatId' : IDL.Func([IDL.Text], [], []),
     'adminRemoveComment' : IDL.Func([CommentId, IDL.Opt(IDL.Text)], [], []),
     'adminRemovePost' : IDL.Func([PostId, IDL.Opt(IDL.Text)], [], []),
+    'adminRequestTfaCode' : IDL.Func([], [IDL.Text], []),
+    'adminSetTelegramBotToken' : IDL.Func([IDL.Text], [], []),
     'adminSetVerified' : IDL.Func([UserId, IDL.Bool], [], []),
     'adminSuspendUser' : IDL.Func([UserId, IDL.Opt(IDL.Text)], [], []),
     'adminUnsuspendUser' : IDL.Func([UserId, IDL.Opt(IDL.Text)], [], []),
+    'adminVerifyTfaCode' : IDL.Func([IDL.Text], [IDL.Bool], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'blockUser' : IDL.Func([UserId], [], []),
-    'claimOwnerRole' : IDL.Func([], [], []),
+    'claimModeratorInvite' : IDL.Func([IDL.Text], [IDL.Bool], []),
+    'claimOwner' : IDL.Func([], [IDL.Bool], []),
     'clearAllNotifications' : IDL.Func([], [], []),
+    'createModeratorInvite' : IDL.Func([IDL.Text], [InviteView], []),
     'createPost' : IDL.Func([CreatePostInput], [PostView], []),
     'createProfile' : IDL.Func([CreateProfileInput], [ProfileView], []),
     'deleteComment' : IDL.Func([CommentId], [], []),
@@ -524,6 +653,11 @@ export const idlFactory = ({ IDL }) => {
     'getMentionsForUser' : IDL.Func(
         [UserId, IDL.Nat, IDL.Nat],
         [Page_3],
+        ['query'],
+      ),
+    'getModeratorInvite' : IDL.Func(
+        [IDL.Text],
+        [IDL.Opt(InviteView)],
         ['query'],
       ),
     'getMutedUsers' : IDL.Func([], [IDL.Vec(UserId)], ['query']),
@@ -558,6 +692,11 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(FlagView)],
         ['query'],
       ),
+    'listModeratorInvites' : IDL.Func(
+        [IDL.Bool],
+        [IDL.Vec(InviteView)],
+        ['query'],
+      ),
     'listModerators' : IDL.Func([], [IDL.Vec(RoleEntry)], ['query']),
     'listPostsByUser' : IDL.Func(
         [UserId, IDL.Nat, IDL.Nat],
@@ -571,10 +710,16 @@ export const idlFactory = ({ IDL }) => {
     'pinPost' : IDL.Func([PostId], [], []),
     'removeModerator' : IDL.Func([UserId], [], []),
     'resolveFlag' : IDL.Func([IDL.Nat, IDL.Opt(IDL.Text)], [], []),
+    'revokeModeratorInvite' : IDL.Func([IDL.Text], [IDL.Bool], []),
     'saveCallerUserProfile' : IDL.Func([CreateProfileInput], [], []),
     'searchPosts' : IDL.Func([IDL.Text], [IDL.Vec(PostView)], ['query']),
     'searchUsers' : IDL.Func([IDL.Text], [IDL.Vec(ProfileView)], ['query']),
     'toggleLike' : IDL.Func([PostId], [IDL.Nat, IDL.Bool], []),
+    'transformWrapper' : IDL.Func(
+        [TransformationInput],
+        [TransformationOutput],
+        ['query'],
+      ),
     'unblockUser' : IDL.Func([UserId], [], []),
     'unfollowUser' : IDL.Func([UserId], [], []),
     'unmuteUser' : IDL.Func([UserId], [], []),

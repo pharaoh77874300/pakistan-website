@@ -25,6 +25,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, ArrowLeft, Save, Trash2, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Avatar3D } from "../components/shared/Avatar3D";
 
 export default function EditProfilePage() {
   const navigate = useNavigate();
@@ -39,6 +40,19 @@ export default function EditProfilePage() {
   const [bio, setBio] = useState("");
   const [avatar, setAvatar] = useState<ExternalBlob | undefined>(undefined);
   const [cover, setCover] = useState<ExternalBlob | undefined>(undefined);
+
+  // Avatar type toggle
+  const [avatarType, setAvatarType] = useState<"photo" | "3d">("photo");
+  const [skinTone, setSkinTone] = useState<
+    "light" | "medium" | "dark" | "deep"
+  >("medium");
+  const [hairStyle, setHairStyle] = useState<
+    "short" | "medium" | "long" | "curly"
+  >("short");
+  const [bodyType, setBodyType] = useState<"slim" | "average" | "athletic">(
+    "average",
+  );
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Prefill form from profile data
@@ -48,6 +62,30 @@ export default function EditProfilePage() {
       setBio(profile.bio ?? "");
       setAvatar(profile.avatarBlob ?? undefined);
       setCover(profile.coverBlob ?? undefined);
+
+      const type = (profile as unknown as Record<string, unknown>).avatarType as
+        | "photo"
+        | "3d"
+        | undefined;
+      setAvatarType(type ?? "photo");
+
+      const configStr = (profile as unknown as Record<string, unknown>)
+        .avatar3dConfig as string | null | undefined;
+      if (configStr) {
+        try {
+          const cfg = JSON.parse(configStr) as Record<string, string>;
+          if (cfg.skinTone)
+            setSkinTone(cfg.skinTone as "light" | "medium" | "dark" | "deep");
+          if (cfg.hairStyle)
+            setHairStyle(
+              cfg.hairStyle as "short" | "medium" | "long" | "curly",
+            );
+          if (cfg.bodyType)
+            setBodyType(cfg.bodyType as "slim" | "average" | "athletic");
+        } catch {
+          // ignore invalid JSON
+        }
+      }
     }
   }, [profile]);
 
@@ -77,21 +115,22 @@ export default function EditProfilePage() {
       return;
     }
     try {
+      const payload = {
+        username: username.trim(),
+        bio: bio.trim(),
+        avatarBlob: avatarType === "photo" ? avatar : undefined,
+        coverBlob: cover,
+        avatarType,
+        avatar3dConfig:
+          avatarType === "3d"
+            ? JSON.stringify({ skinTone, hairStyle, bodyType })
+            : undefined,
+      };
       if (!profile) {
-        await createProfile({
-          username: username.trim(),
-          bio: bio.trim(),
-          avatarBlob: avatar,
-          coverBlob: cover,
-        });
+        await createProfile(payload);
         toast.success("Profile created!");
       } else {
-        await updateProfile({
-          username: username.trim(),
-          bio: bio.trim(),
-          avatarBlob: avatar,
-          coverBlob: cover,
-        });
+        await updateProfile(payload);
         toast.success("Profile updated successfully!");
       }
       if (profile?.id) {
@@ -188,25 +227,144 @@ export default function EditProfilePage() {
               <CardDescription>Square image works best</CardDescription>
             </CardHeader>
             <CardContent>
+              {/* Avatar type toggle */}
+              <div className="flex items-center gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setAvatarType("photo")}
+                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    avatarType === "photo"
+                      ? "bg-green-600 text-white"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  }`}
+                  data-ocid="edit_profile.avatar_tab_photo"
+                >
+                  Upload Photo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAvatarType("3d")}
+                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    avatarType === "3d"
+                      ? "bg-green-600 text-white"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  }`}
+                  data-ocid="edit_profile.avatar_tab_3d"
+                >
+                  3D Avatar
+                </button>
+              </div>
+
               <div className="flex items-center gap-5">
                 <div className="flex-shrink-0">
-                  <Avatar blob={avatar} name={username} size="xl" />
+                  {avatarType === "3d" ? (
+                    <Avatar3D
+                      skinTone={skinTone}
+                      hairStyle={hairStyle}
+                      bodyType={bodyType}
+                      size={80}
+                    />
+                  ) : (
+                    <Avatar blob={avatar} name={username} size="xl" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-muted-foreground mb-3">
-                    {avatar
-                      ? "Looking good! Upload a new one to change it."
-                      : "No photo yet — upload one to personalize your profile."}
-                  </p>
-                  <ImageUpload
-                    value={avatar}
-                    onChange={setAvatar}
-                    label="Change avatar"
-                    aspect="square"
-                    data-ocid="edit_profile.avatar_upload"
-                  />
+                  {avatarType === "photo" && (
+                    <>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {avatar
+                          ? "Looking good! Upload a new one to change it."
+                          : "No photo yet — upload one to personalize your profile."}
+                      </p>
+                      <ImageUpload
+                        value={avatar}
+                        onChange={setAvatar}
+                        label="Change avatar"
+                        aspect="square"
+                        data-ocid="edit_profile.avatar_upload"
+                      />
+                    </>
+                  )}
                 </div>
               </div>
+
+              {/* 3D Avatar customization */}
+              {avatarType === "3d" && (
+                <div
+                  className="space-y-4 mt-4"
+                  data-ocid="edit_profile.avatar3d_controls"
+                >
+                  {/* Skin tone */}
+                  <div>
+                    <p className="text-sm font-medium mb-2">Skin Tone</p>
+                    <div className="flex gap-2">
+                      {(["light", "medium", "dark", "deep"] as const).map(
+                        (tone) => (
+                          <button
+                            key={tone}
+                            type="button"
+                            onClick={() => setSkinTone(tone)}
+                            className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-colors ${
+                              skinTone === tone
+                                ? "bg-green-600 text-white"
+                                : "bg-muted text-muted-foreground hover:bg-muted/80"
+                            }`}
+                            data-ocid={`edit_profile.skin_tone_${tone}`}
+                          >
+                            {tone}
+                          </button>
+                        ),
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Hair style */}
+                  <div>
+                    <p className="text-sm font-medium mb-2">Hair Style</p>
+                    <div className="flex gap-2">
+                      {(["short", "medium", "long", "curly"] as const).map(
+                        (style) => (
+                          <button
+                            key={style}
+                            type="button"
+                            onClick={() => setHairStyle(style)}
+                            className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-colors ${
+                              hairStyle === style
+                                ? "bg-green-600 text-white"
+                                : "bg-muted text-muted-foreground hover:bg-muted/80"
+                            }`}
+                            data-ocid={`edit_profile.hair_style_${style}`}
+                          >
+                            {style}
+                          </button>
+                        ),
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Body type */}
+                  <div>
+                    <p className="text-sm font-medium mb-2">Body Type</p>
+                    <div className="flex gap-2">
+                      {(["slim", "average", "athletic"] as const).map((bt) => (
+                        <button
+                          key={bt}
+                          type="button"
+                          onClick={() => setBodyType(bt)}
+                          className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-colors ${
+                            bodyType === bt
+                              ? "bg-green-600 text-white"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
+                          data-ocid={`edit_profile.body_type_${bt}`}
+                        >
+                          {bt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 

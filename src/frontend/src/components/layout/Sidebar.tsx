@@ -4,6 +4,7 @@ import { useMyProfile } from "@/hooks/use-backend";
 import { useGetMyAdminRole } from "@/hooks/use-backend";
 import { useUnreadCount } from "@/hooks/use-notifications";
 import { Link, useLocation } from "@tanstack/react-router";
+import type { LucideIcon } from "lucide-react";
 import {
   Bell,
   Compass,
@@ -19,7 +20,7 @@ import {
 interface NavItem {
   to: string;
   label: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
   exact?: boolean;
 }
 

@@ -18,6 +18,8 @@ const mockUserProfile = {
   followerCount: BigInt(840),
   followingCount: BigInt(120),
   coverBlob: undefined,
+  avatarType: "photo" as const,
+  avatar3dConfig: undefined,
 };
 
 const mockUserProfile2 = {
@@ -31,6 +33,8 @@ const mockUserProfile2 = {
   followerCount: BigInt(320),
   followingCount: BigInt(58),
   coverBlob: undefined,
+  avatarType: "photo" as const,
+  avatar3dConfig: undefined,
 };
 
 const mockPost1 = {
@@ -129,12 +133,18 @@ export const mockBackend: backendInterface = {
     followerCount: BigInt(0),
     followingCount: BigInt(0),
     coverBlob: input.coverBlob,
+    avatarType: input.avatarType ?? "photo",
+    avatar3dConfig: input.avatar3dConfig ?? undefined,
   }),
   deleteComment: async () => undefined,
   deletePost: async () => undefined,
   followUser: async () => undefined,
   getBlockedUsers: async () => [],
-  getCallerUserProfile: async () => mockUserProfile,
+  getCallerUserProfile: async () => ({
+    ...mockUserProfile,
+    avatarType: mockUserProfile.avatarType,
+    avatar3dConfig: mockUserProfile.avatar3dConfig,
+  }),
   getCallerUserRole: async () => UserRole.user,
   getFeed: async () => ({
     total: BigInt(2),
@@ -155,15 +165,33 @@ export const mockBackend: backendInterface = {
     items: [mockNotification1, mockNotification2, mockNotification3],
     nextOffset: undefined,
   }),
-  getMyProfile: async () => mockUserProfile,
+  getMyProfile: async () => ({
+    ...mockUserProfile,
+    avatarType: mockUserProfile.avatarType,
+    avatar3dConfig: mockUserProfile.avatar3dConfig,
+  }),
   getPinnedPosts: async () => [BigInt(1)],
   getPost: async (postId) =>
     postId === BigInt(1) ? mockPost1 : postId === BigInt(2) ? mockPost2 : null,
-  getProfile: async () => mockUserProfile2,
-  getProfileByUsername: async (username) =>
-    username === "ali_hassan" ? mockUserProfile : mockUserProfile2,
+  getProfile: async () => ({
+    ...mockUserProfile2,
+    avatarType: mockUserProfile2.avatarType,
+    avatar3dConfig: mockUserProfile2.avatar3dConfig,
+  }),
+  getProfileByUsername: async (username) => {
+    const base = username === "ali_hassan" ? mockUserProfile : mockUserProfile2;
+    return {
+      ...base,
+      avatarType: base.avatarType,
+      avatar3dConfig: base.avatar3dConfig,
+    };
+  },
   getUnreadCount: async () => BigInt(2),
-  getUserProfile: async () => mockUserProfile2,
+  getUserProfile: async () => ({
+    ...mockUserProfile2,
+    avatarType: mockUserProfile2.avatarType,
+    avatar3dConfig: mockUserProfile2.avatar3dConfig,
+  }),
   isBlocked: async () => false,
   isCallerAdmin: async () => false,
   isFollowing: async () => true,
@@ -189,7 +217,10 @@ export const mockBackend: backendInterface = {
   }),
   listProfiles: async () => ({
     total: BigInt(2),
-    items: [mockUserProfile, mockUserProfile2],
+    items: [
+      { ...mockUserProfile, avatarType: mockUserProfile.avatarType, avatar3dConfig: mockUserProfile.avatar3dConfig },
+      { ...mockUserProfile2, avatarType: mockUserProfile2.avatarType, avatar3dConfig: mockUserProfile2.avatar3dConfig },
+    ],
     nextOffset: undefined,
   }),
   markAllNotificationsRead: async () => undefined,
@@ -198,7 +229,10 @@ export const mockBackend: backendInterface = {
   pinPost: async () => undefined,
   saveCallerUserProfile: async () => undefined,
   searchPosts: async () => [mockPost1, mockPost2],
-  searchUsers: async () => [mockUserProfile, mockUserProfile2],
+  searchUsers: async () => [
+    { ...mockUserProfile, avatarType: mockUserProfile.avatarType, avatar3dConfig: mockUserProfile.avatar3dConfig },
+    { ...mockUserProfile2, avatarType: mockUserProfile2.avatarType, avatar3dConfig: mockUserProfile2.avatar3dConfig },
+  ],
   toggleLike: async () => [BigInt(48), true],
   unblockUser: async () => undefined,
   unfollowUser: async () => undefined,
@@ -216,7 +250,20 @@ export const mockBackend: backendInterface = {
   listModerators: async () => [],
   getMyAdminRole: async () => null,
   getOwner: async () => null,
-  claimOwnerRole: async () => undefined,
+  claimOwner: async () => true,
+
+  createModeratorInvite: async (code) => ({
+    code,
+    status: "pending" as never,
+    createdAt: BigInt(Date.now()) * BigInt(1_000_000),
+    expiresAt: (BigInt(Date.now()) + BigInt(7 * 24 * 3600 * 1000)) * BigInt(1_000_000),
+    createdBy: makePrincipal("user-1"),
+  }),
+  claimModeratorInvite: async () => true,
+  revokeModeratorInvite: async () => true,
+  listModeratorInvites: async () => [],
+  getModeratorInvite: async () => null,
+
   flagPost: async () => BigInt(1),
   flagComment: async () => BigInt(1),
   flagUser: async () => BigInt(1),
@@ -230,9 +277,20 @@ export const mockBackend: backendInterface = {
   resolveFlag: async () => undefined,
   dismissFlag: async () => undefined,
   listActivityLog: async () => [],
+  adminGetMyTelegramChatId: async () => null,
+  adminGetTelegramBotToken: async () => null,
+  adminGetTfaLockoutStatus: async () => ({ failedCount: BigInt(0), locked: false, lockedUntil: undefined }),
+  adminRegisterTelegramChatId: async () => undefined,
+  adminRequestTfaCode: async () => '',
+  adminSetTelegramBotToken: async () => undefined,
+  adminVerifyTfaCode: async () => false,
+
+  transformWrapper: async () => ({ status: BigInt(200), body: new Uint8Array(), headers: [] }),
   updateProfile: async (input) => ({
     ...mockUserProfile,
     bio: input.bio ?? mockUserProfile.bio,
     username: input.username ?? mockUserProfile.username,
+    avatarType: input.avatarType ?? mockUserProfile.avatarType,
+    avatar3dConfig: input.avatar3dConfig ?? mockUserProfile.avatar3dConfig,
   }),
 };

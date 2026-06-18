@@ -55,6 +55,34 @@ module {
     resolution  : ?Text;
   };
 
+  // Moderator invite links
+  public type InviteStatus = {
+    #pending;
+    #claimed;
+    #revoked;
+    #expired;
+  };
+
+  public type ModeratorInvite = {
+    code       : Text;             // unique opaque code
+    createdBy  : Common.UserId;
+    createdAt  : Common.Timestamp;
+    expiresAt  : Common.Timestamp; // createdAt + 7 days in ns
+    var status : InviteStatus;
+    var claimedBy  : ?Common.UserId;
+    var claimedAt  : ?Common.Timestamp;
+  };
+
+  public type InviteView = {
+    code       : Text;
+    createdBy  : Common.UserId;
+    createdAt  : Common.Timestamp;
+    expiresAt  : Common.Timestamp;
+    status     : InviteStatus;
+    claimedBy  : ?Common.UserId;
+    claimedAt  : ?Common.Timestamp;
+  };
+
   // Moderation actions
   public type ActionKind = {
     #removePost;         // hide/delete a post
@@ -65,6 +93,13 @@ module {
     #resolveFlag;        // resolve a flag after taking action
     #addModerator;       // owner grants moderator role
     #removeModerator;    // owner revokes moderator role
+    #claimOwner;         // first user claims the owner role
+    #inviteClaimed;      // a moderator invite was claimed
+    #inviteRevoked;      // owner revoked an unclaimed invite
+    #tfaSuccess;         // TFA verification succeeded
+    #tfaFailure;         // TFA verification failed
+    #tfaLockout;         // TFA account locked
+    #tfaResend;          // TFA code resent
   };
 
   public type ActivityLogEntry = {

@@ -2,12 +2,19 @@
 type ActionKind__963076589 =
   {
     #addModerator;
+    #claimOwner;
     #dismissFlag;
+    #inviteClaimed;
+    #inviteRevoked;
     #removeComment;
     #removeModerator;
     #removePost;
     #resolveFlag;
     #suspendUser;
+    #tfaFailure;
+    #tfaLockout;
+    #tfaResend;
+    #tfaSuccess;
     #unsuspendUser
   };
 type ActivityLogEntry__874489866 =
@@ -54,6 +61,7 @@ type Internal__1007892817<T> =
   {children : [var ?Node__918630472<T>]; data : Data__628993992<T>};
 type Internal__41346355<K, V> =
   {children : [var ?Node__1000929467<K, V>]; data : Data__80296667<K, V>};
+type InviteStatus__697987329 = {#claimed; #expired; #pending; #revoked};
 type Leaf__693487502<T> = {data : Data__628993992<T>};
 type Leaf__712614010<K, V> = {data : Data__80296667<K, V>};
 type List__529703492<T> =
@@ -74,6 +82,16 @@ type Mention__973140433 =
     mentionedUserId : UserId__158757552;
     postId : PostId__861309770
   };
+type ModeratorInvite__1033921495 =
+  {
+    var claimedAt : ?Timestamp__301639476;
+    var claimedBy : ?UserId__158757552;
+    code : Text;
+    createdAt : Timestamp__301639476;
+    createdBy : UserId__158757552;
+    expiresAt : Timestamp__301639476;
+    var status : InviteStatus__697987329
+  };
 type Nat__1040412405 = Nat__920180692;
 type Nat__920180692 = Nat;
 type Node__1000929467<K, V> =
@@ -92,6 +110,12 @@ type Notification__264708741 =
     recipientId : UserId__158757552;
     targetPostId : ?PostId__861309770;
     targetUserId : ?UserId__158757552
+  };
+type OtpRecord__561214323 =
+  {
+    code : Text;
+    createdAt : Timestamp__301639476;
+    expiresAt : Timestamp__301639476
   };
 type PostId__861309770 = Nat;
 type PostPrivacy__232810526 = {#followersOnly; #public_};
@@ -117,11 +141,20 @@ type RoleEntry__287554419 =
 type Set__1052415927<T> = Set__310360741<T>;
 type Set__310360741<T> =
   {var root : Node__918630472<T>; var size : Nat__1040412405};
+type TfaAttempt__238062936 =
+  {
+    var failedCount : Nat;
+    var lastFailedAt : ?Timestamp__301639476;
+    var lastResendAt : ?Timestamp__301639476;
+    var lockedUntil : ?Timestamp__301639476
+  };
 type Timestamp__301639476 = Int;
 type UserId__158757552 = Principal;
 type UserProfile__190304746 =
   {
+    var avatar3dConfig : ?Text;
     var avatarBlob : ?ExternalBlob__671167343;
+    var avatarType : Text;
     var bio : Text;
     var coverBlob : ?ExternalBlob__671167343;
     createdAt : Timestamp__301639476;
@@ -143,6 +176,7 @@ actor {
     {
       activityLog : List__560604548<ActivityLogEntry__874489866>;
       flags : List__560604548<FlagRecord__816698439>;
+      invites : Map__222667396<Text, ModeratorInvite__1033921495>;
       var nextFlagId : Nat;
       var nextLogId : Nat;
       var ownerId : ?UserId__158757552;
@@ -203,5 +237,12 @@ actor {
         Map__222667396<UserId__158757552, Set__1052415927<UserId__158757552>>;
       following :
         Map__222667396<UserId__158757552, Set__1052415927<UserId__158757552>>
+    };
+  stable tfaState :
+    {
+      attempts : Map__222667396<UserId__158757552, TfaAttempt__238062936>;
+      var botToken : ?Text;
+      chatIds : Map__222667396<UserId__158757552, Text>;
+      otpCodes : Map__222667396<UserId__158757552, OtpRecord__561214323>
     }
 };

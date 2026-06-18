@@ -48,7 +48,13 @@ export function UserCard({ profile, index = 1 }: UserCardProps) {
         className="flex items-center gap-3 flex-1 min-w-0"
         data-ocid={`user.profile_link.${index}`}
       >
-        <Avatar blob={profile.avatarBlob} name={profile.username} size="md" />
+        <Avatar
+          blob={profile.avatarBlob}
+          name={profile.username}
+          size="md"
+          avatarType={profile.avatarType === "3d" ? "3d" : "photo"}
+          avatar3dConfig={profile.avatar3dConfig}
+        />
         <div className="min-w-0">
           <p className="font-display font-semibold text-foreground text-sm truncate flex items-center gap-1">
             {profile.username}

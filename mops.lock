@@ -1,10 +1,11 @@
 {
   "version": 3,
-  "mopsTomlDepsHash": "27bdda242252cee9665b4752f1e5a743424d46b152e823b40722e969a9cc83db",
+  "mopsTomlDepsHash": "eea4a22437b08048e39ec378d73fb1ec2c62bde73e82e267d7a822b33c416c26",
   "deps": {
     "core": "2.5.0",
     "caffeineai-object-storage": "0.1.2",
-    "caffeineai-authorization": "0.1.1"
+    "caffeineai-authorization": "0.1.1",
+    "caffeineai-http-outcalls": "0.1.1"
   },
   "hashes": {
     "core@2.5.0": {
@@ -85,6 +86,11 @@
       "caffeineai-authorization@0.1.1/rules/no-redeclare-assign-caller-user-role.toml": "e8669dfe4931aaa4268682877388255342ce2cb2cdafd21a121ddf22ef42b500",
       "caffeineai-authorization@0.1.1/rules/mixin-authorization-included.toml": "57fa6a81594ea8c12e0a3315c36dec4adf718444b8ef70a11cda1aaa1b11624a",
       "caffeineai-authorization@0.1.1/src/access-control.mo": "e517d2a028b510d804a633631a15981160def610ea9410dd5a122f92af3c04d8"
+    },
+    "caffeineai-http-outcalls@0.1.1": {
+      "caffeineai-http-outcalls@0.1.1/mops.toml": "412e8919376cb4b2260c2bb830dc44a7c9092271b1082469da30f445d6e40e00",
+      "caffeineai-http-outcalls@0.1.1/README.md": "c8dd0ee7548ac60f5c82c6f5f0a517bbcb847e1e876b71351a5b174b9a46a3fd",
+      "caffeineai-http-outcalls@0.1.1/src/outcall.mo": "f5e1eec3b12a04244856f99358e8766a2b5eedc0bf8d9abbebe372c1a3eaca58"
     }
   }
 }

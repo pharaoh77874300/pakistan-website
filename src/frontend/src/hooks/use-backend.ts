@@ -3,9 +3,11 @@ import {
   type AdminRole,
   type FlagStatus,
   type FlagView,
+  type InviteView,
   type RoleEntry,
   createActor,
 } from "@/backend";
+import type { LockoutStatus } from "@/backend";
 import type {
   Comment,
   CommentId,
@@ -471,7 +473,9 @@ export function useGetMyAdminRole() {
       return actor.getMyAdminRole();
     },
     enabled: !!actor && !isFetching,
-    staleTime: 30_000,
+    // No staleTime — always refetch so we never serve a stale null as real data.
+    staleTime: 0,
+    gcTime: 0,
   });
 }
 
@@ -481,10 +485,29 @@ export function useGetOwner() {
     queryKey: ["owner"],
     queryFn: async () => {
       if (!actor) return null;
-      return actor.getOwner();
+      const result = await actor.getOwner();
+      return result ?? null;
     },
     enabled: !!actor && !isFetching,
-    staleTime: 60_000,
+    staleTime: 30_000,
+  });
+}
+
+export function useClaimOwner() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      if (!actor) throw new Error("Not connected");
+      const success = await actor.claimOwner();
+      if (!success) throw new Error("Owner already claimed");
+      return success;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["owner"] });
+      qc.invalidateQueries({ queryKey: ["myAdminRole"] });
+      qc.invalidateQueries({ queryKey: ["moderators"] });
+    },
   });
 }
 
@@ -537,21 +560,6 @@ export function useIsUserSuspended(userId: UserId | null | undefined) {
     },
     enabled: !!actor && !isFetching && !!userId,
     staleTime: 30_000,
-  });
-}
-
-export function useClaimOwnerRole() {
-  const { actor } = useActor(createActor);
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async () => {
-      if (!actor) throw new Error("Not connected");
-      return actor.claimOwnerRole();
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["myAdminRole"] });
-      qc.invalidateQueries({ queryKey: ["owner"] });
-    },
   });
 }
 
@@ -681,6 +689,77 @@ export function useDismissFlag() {
   });
 }
 
+export function useCreateModeratorInvite() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (code: string) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.createModeratorInvite(code);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["moderatorInvites"] });
+    },
+  });
+}
+
+export function useClaimModeratorInvite() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (code: string) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.claimModeratorInvite(code);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["myAdminRole"] });
+      qc.invalidateQueries({ queryKey: ["moderators"] });
+      qc.invalidateQueries({ queryKey: ["moderatorInvites"] });
+    },
+  });
+}
+
+export function useRevokeModeratorInvite() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (code: string) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.revokeModeratorInvite(code);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["moderatorInvites"] });
+      qc.invalidateQueries({ queryKey: ["activityLog"] });
+    },
+  });
+}
+
+export function useListModeratorInvites(pendingOnly = false) {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery<InviteView[]>({
+    queryKey: ["moderatorInvites", pendingOnly],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.listModeratorInvites(pendingOnly);
+    },
+    enabled: !!actor && !isFetching,
+    staleTime: 15_000,
+  });
+}
+
+export function useGetModeratorInvite(code: string) {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery<InviteView | null>({
+    queryKey: ["moderatorInvite", code],
+    queryFn: async () => {
+      if (!actor || !code) return null;
+      return actor.getModeratorInvite(code);
+    },
+    enabled: !!actor && !isFetching && !!code,
+    staleTime: 10_000,
+  });
+}
+
 export function useFlagPost() {
   const { actor } = useActor(createActor);
   const qc = useQueryClient();
@@ -729,5 +808,90 @@ export function useFlagUser() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["flags"] });
     },
+  });
+}
+
+export function useAdminRequestTfaCode() {
+  const { actor } = useActor(createActor);
+  return useMutation({
+    mutationFn: async () => {
+      if (!actor) throw new Error("Not connected");
+      return actor.adminRequestTfaCode();
+    },
+  });
+}
+
+export function useAdminVerifyTfaCode() {
+  const { actor } = useActor(createActor);
+  return useMutation({
+    mutationFn: async (code: string) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.adminVerifyTfaCode(code);
+    },
+  });
+}
+
+export function useAdminRegisterTelegramChatId() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (chatId: string) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.adminRegisterTelegramChatId(chatId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-telegram-chat-id"] });
+    },
+  });
+}
+
+export function useAdminGetMyTelegramChatId() {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery<string | null>({
+    queryKey: ["admin-telegram-chat-id"],
+    queryFn: async () => {
+      if (!actor) return null;
+      return actor.adminGetMyTelegramChatId();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAdminSetTelegramBotToken() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (token: string) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.adminSetTelegramBotToken(token);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-telegram-bot-token"] });
+    },
+  });
+}
+
+export function useAdminGetTelegramBotToken() {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery<string | null>({
+    queryKey: ["admin-telegram-bot-token"],
+    queryFn: async () => {
+      if (!actor) return null;
+      return actor.adminGetTelegramBotToken();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAdminGetTfaLockoutStatus() {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery<LockoutStatus | null>({
+    queryKey: ["admin-tfa-lockout"],
+    queryFn: async () => {
+      if (!actor) return null;
+      return actor.adminGetTfaLockoutStatus();
+    },
+    enabled: !!actor && !isFetching,
+    refetchInterval: 10_000,
   });
 }

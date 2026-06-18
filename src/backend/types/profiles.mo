@@ -12,6 +12,8 @@ module {
     var followingCount : Nat;
     var postCount : Nat;
     var isVerified : Bool;
+    var avatarType : Text;
+    var avatar3dConfig : ?Text;
     createdAt : Common.Timestamp;
   };
 
@@ -26,6 +28,8 @@ module {
     followingCount : Nat;
     postCount : Nat;
     isVerified : Bool;
+    avatarType : Text;
+    avatar3dConfig : ?Text;
     createdAt : Common.Timestamp;
   };
 
@@ -34,6 +38,8 @@ module {
     bio : Text;
     avatarBlob : ?Storage.ExternalBlob;
     coverBlob : ?Storage.ExternalBlob;
+    avatarType : ?Text;
+    avatar3dConfig : ?Text;
   };
 
   public type UpdateProfileInput = {
@@ -41,5 +47,7 @@ module {
     bio : ?Text;
     avatarBlob : ?Storage.ExternalBlob;
     coverBlob : ?Storage.ExternalBlob;
+    avatarType : ?Text;
+    avatar3dConfig : ?Text;
   };
 };

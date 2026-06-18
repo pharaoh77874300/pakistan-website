@@ -35,6 +35,8 @@ module {
       followingCount = profile.followingCount;
       postCount = profile.postCount;
       isVerified = profile.isVerified;
+      avatarType = profile.avatarType;
+      avatar3dConfig = profile.avatar3dConfig;
       createdAt = profile.createdAt;
     };
   };
@@ -64,6 +66,8 @@ module {
       var followingCount = 0;
       var postCount = 0;
       var isVerified = false;
+      var avatarType = switch (input.avatarType) { case (?t) t; case null "photo" };
+      var avatar3dConfig = input.avatar3dConfig;
       createdAt = now;
     };
     state.profiles.add(caller, profile);
@@ -109,6 +113,14 @@ module {
     };
     switch (input.coverBlob) {
       case (?c) { profile.coverBlob := ?c };
+      case null {};
+    };
+    switch (input.avatarType) {
+      case (?t) { profile.avatarType := t };
+      case null {};
+    };
+    switch (input.avatar3dConfig) {
+      case (?cfg) { profile.avatar3dConfig := ?cfg };
       case null {};
     };
     toView(profile);

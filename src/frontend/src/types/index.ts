@@ -4,6 +4,7 @@ import type {
   CreatePostInput,
   CreateProfileInput,
   ExternalBlob,
+  InviteView,
   NotificationView,
   Page,
   Page_1,
@@ -14,7 +15,7 @@ import type {
   UpdateProfileInput,
   UserId,
 } from "@/backend";
-import { NotificationType, PostPrivacy } from "@/backend";
+import { InviteStatus, NotificationType, PostPrivacy } from "@/backend";
 import type { Principal } from "@icp-sdk/core/principal";
 
 export type {
@@ -33,9 +34,10 @@ export type {
   Page_2,
   NotificationView,
   Principal,
+  InviteView,
 };
 
-export { NotificationType, PostPrivacy };
+export { NotificationType, PostPrivacy, InviteStatus };
 
 export interface AuthUser {
   principal: Principal;

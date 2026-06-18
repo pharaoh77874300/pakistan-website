@@ -11,11 +11,18 @@ import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
 export type ActionKind = { 'addModerator' : null } |
+  { 'inviteRevoked' : null } |
   { 'removeComment' : null } |
+  { 'tfaResend' : null } |
+  { 'tfaSuccess' : null } |
   { 'removeModerator' : null } |
+  { 'claimOwner' : null } |
+  { 'inviteClaimed' : null } |
   { 'suspendUser' : null } |
+  { 'tfaFailure' : null } |
   { 'dismissFlag' : null } |
   { 'removePost' : null } |
+  { 'tfaLockout' : null } |
   { 'resolveFlag' : null } |
   { 'unsuspendUser' : null };
 export interface ActivityLogView {
@@ -46,6 +53,8 @@ export interface CreateProfileInput {
   'bio' : string,
   'username' : string,
   'avatarBlob' : [] | [ExternalBlob],
+  'avatarType' : [] | [string],
+  'avatar3dConfig' : [] | [string],
   'coverBlob' : [] | [ExternalBlob],
 }
 export type ExternalBlob = Uint8Array;
@@ -67,6 +76,24 @@ export interface FlagView {
   'resolvedAt' : [] | [Timestamp],
   'resolvedBy' : [] | [UserId],
   'reason' : string,
+}
+export type InviteStatus = { 'revoked' : null } |
+  { 'expired' : null } |
+  { 'pending' : null } |
+  { 'claimed' : null };
+export interface InviteView {
+  'status' : InviteStatus,
+  'expiresAt' : Timestamp,
+  'code' : string,
+  'createdAt' : Timestamp,
+  'createdBy' : UserId,
+  'claimedAt' : [] | [Timestamp],
+  'claimedBy' : [] | [UserId],
+}
+export interface LockoutStatus {
+  'failedCount' : bigint,
+  'locked' : boolean,
+  'lockedUntil' : [] | [Timestamp],
 }
 export interface Mention {
   'mentionedUserId' : UserId,
@@ -130,8 +157,10 @@ export interface ProfileView {
   'postCount' : bigint,
   'username' : string,
   'avatarBlob' : [] | [ExternalBlob],
+  'avatarType' : string,
   'createdAt' : Timestamp,
   'isVerified' : boolean,
+  'avatar3dConfig' : [] | [string],
   'followerCount' : bigint,
   'followingCount' : bigint,
   'coverBlob' : [] | [ExternalBlob],
@@ -143,10 +172,21 @@ export interface RoleEntry {
   'role' : AdminRole,
 }
 export type Timestamp = bigint;
+export interface TransformationInput {
+  'context' : Uint8Array,
+  'response' : http_request_result,
+}
+export interface TransformationOutput {
+  'status' : bigint,
+  'body' : Uint8Array,
+  'headers' : Array<http_header>,
+}
 export interface UpdateProfileInput {
   'bio' : [] | [string],
   'username' : [] | [string],
   'avatarBlob' : [] | [ExternalBlob],
+  'avatarType' : [] | [string],
+  'avatar3dConfig' : [] | [string],
   'coverBlob' : [] | [ExternalBlob],
 }
 export type UserId = Principal;
@@ -163,6 +203,12 @@ export interface _ImmutableObjectStorageRefillInformation {
 export interface _ImmutableObjectStorageRefillResult {
   'success' : [] | [boolean],
   'topped_up_amount' : [] | [bigint],
+}
+export interface http_header { 'value' : string, 'name' : string }
+export interface http_request_result {
+  'status' : bigint,
+  'body' : Uint8Array,
+  'headers' : Array<http_header>,
 }
 export interface _SERVICE {
   '_immutableObjectStorageBlobsAreLive' : ActorMethod<
@@ -190,15 +236,24 @@ export interface _SERVICE {
     [UserId, UserId, NotificationType, [] | [PostId], [] | [UserId]],
     undefined
   >,
+  'adminGetMyTelegramChatId' : ActorMethod<[], [] | [string]>,
+  'adminGetTelegramBotToken' : ActorMethod<[], [] | [string]>,
+  'adminGetTfaLockoutStatus' : ActorMethod<[], LockoutStatus>,
+  'adminRegisterTelegramChatId' : ActorMethod<[string], undefined>,
   'adminRemoveComment' : ActorMethod<[CommentId, [] | [string]], undefined>,
   'adminRemovePost' : ActorMethod<[PostId, [] | [string]], undefined>,
+  'adminRequestTfaCode' : ActorMethod<[], string>,
+  'adminSetTelegramBotToken' : ActorMethod<[string], undefined>,
   'adminSetVerified' : ActorMethod<[UserId, boolean], undefined>,
   'adminSuspendUser' : ActorMethod<[UserId, [] | [string]], undefined>,
   'adminUnsuspendUser' : ActorMethod<[UserId, [] | [string]], undefined>,
+  'adminVerifyTfaCode' : ActorMethod<[string], boolean>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'blockUser' : ActorMethod<[UserId], undefined>,
-  'claimOwnerRole' : ActorMethod<[], undefined>,
+  'claimModeratorInvite' : ActorMethod<[string], boolean>,
+  'claimOwner' : ActorMethod<[], boolean>,
   'clearAllNotifications' : ActorMethod<[], undefined>,
+  'createModeratorInvite' : ActorMethod<[string], InviteView>,
   'createPost' : ActorMethod<[CreatePostInput], PostView>,
   'createProfile' : ActorMethod<[CreateProfileInput], ProfileView>,
   'deleteComment' : ActorMethod<[CommentId], undefined>,
@@ -217,6 +272,7 @@ export interface _SERVICE {
   'getFollowing' : ActorMethod<[UserId], Array<UserId>>,
   'getFollowingIds' : ActorMethod<[], Array<UserId>>,
   'getMentionsForUser' : ActorMethod<[UserId, bigint, bigint], Page_3>,
+  'getModeratorInvite' : ActorMethod<[string], [] | [InviteView]>,
   'getMutedUsers' : ActorMethod<[], Array<UserId>>,
   'getMyAdminRole' : ActorMethod<[], [] | [AdminRole]>,
   'getMyNotifications' : ActorMethod<[bigint, bigint], Page_2>,
@@ -237,6 +293,7 @@ export interface _SERVICE {
   'listAllPosts' : ActorMethod<[bigint, bigint], Page_1>,
   'listComments' : ActorMethod<[PostId], Array<Comment>>,
   'listFlags' : ActorMethod<[[] | [FlagStatus]], Array<FlagView>>,
+  'listModeratorInvites' : ActorMethod<[boolean], Array<InviteView>>,
   'listModerators' : ActorMethod<[], Array<RoleEntry>>,
   'listPostsByUser' : ActorMethod<[UserId, bigint, bigint], Page_1>,
   'listProfiles' : ActorMethod<[bigint, bigint], Page>,
@@ -246,10 +303,12 @@ export interface _SERVICE {
   'pinPost' : ActorMethod<[PostId], undefined>,
   'removeModerator' : ActorMethod<[UserId], undefined>,
   'resolveFlag' : ActorMethod<[bigint, [] | [string]], undefined>,
+  'revokeModeratorInvite' : ActorMethod<[string], boolean>,
   'saveCallerUserProfile' : ActorMethod<[CreateProfileInput], undefined>,
   'searchPosts' : ActorMethod<[string], Array<PostView>>,
   'searchUsers' : ActorMethod<[string], Array<ProfileView>>,
   'toggleLike' : ActorMethod<[PostId], [bigint, boolean]>,
+  'transformWrapper' : ActorMethod<[TransformationInput], TransformationOutput>,
   'unblockUser' : ActorMethod<[UserId], undefined>,
   'unfollowUser' : ActorMethod<[UserId], undefined>,
   'unmuteUser' : ActorMethod<[UserId], undefined>,

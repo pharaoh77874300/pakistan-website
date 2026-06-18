@@ -1,18 +1,24 @@
 {
-  "overview": "Pakistan is a professional social media platform with a dedicated profile setup page for new users.",
+  "overview": "Pakistan is a professional social media platform with features from Twitter, Instagram, Snapchat, and Facebook, including a moderated admin panel with Telegram bot two-factor authentication.",
   "features": [
-    "Dedicated profile setup page after sign-up",
-    "Username, bio, avatar, and cover photo collection",
-    "Real-time username validation",
-    "Skip and Save options",
-    "Automatic redirect to home feed after setup"
+    "Feeds, posts, likes, and comments",
+    "Follow and unfollow users",
+    "Direct messages and stories",
+    "Admin panel with owner and moderator roles",
+    "Telegram bot 2FA for admin panel login",
+    "Content moderation and user management",
+    "Invite links for moderators",
+    "3D avatars and profile setup",
+    "Green and white theme with dark mode"
   ],
-  "category": "social-network",
+  "category": "social-media",
   "tags": [
     "social-media",
-    "profile",
-    "onboarding",
-    "green-theme"
+    "pakistan",
+    "community",
+    "content-moderation",
+    "2fa",
+    "admin-panel"
   ],
-  "last_updated": "2026-06-04T16:47:45.878Z"
+  "last_updated": "2026-06-10T08:11:44.973Z"
 }

@@ -1,16 +1,31 @@
 import { PostPrivacy } from "@/backend";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
-import { useDeletePost, useProfile, useToggleLike } from "@/hooks/use-backend";
+import {
+  useDeletePost,
+  useFlagPost,
+  useProfile,
+  useToggleLike,
+} from "@/hooks/use-backend";
 import type { PostView, UserId } from "@/types";
 import { Link } from "@tanstack/react-router";
 import {
+  Flag,
   Heart,
   Lock,
   MessageCircle,
@@ -56,6 +71,22 @@ export function PostCard({ post, index = 1, pinned }: PostCardProps) {
   const isOwner =
     identity?.getPrincipal().toString() === post.authorId.toString();
 
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const { mutateAsync: flagPost, isPending: flagging } = useFlagPost();
+
+  const handleReport = async () => {
+    if (!reportReason.trim()) return;
+    try {
+      await flagPost({ postId: post.id, reason: reportReason.trim() });
+      toast.success("Post reported. Moderators will review it.");
+      setReportOpen(false);
+      setReportReason("");
+    } catch {
+      toast.error("Could not report post. Please try again.");
+    }
+  };
+
   const handleLike = async () => {
     if (liking) return;
     setOptimisticLiked(!liked);
@@ -99,6 +130,8 @@ export function PostCard({ post, index = 1, pinned }: PostCardProps) {
             blob={authorProfile?.avatarBlob}
             name={authorProfile?.username}
             size="md"
+            avatarType={authorProfile?.avatarType === "3d" ? "3d" : "photo"}
+            avatar3dConfig={authorProfile?.avatar3dConfig}
           />
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
@@ -122,19 +155,19 @@ export function PostCard({ post, index = 1, pinned }: PostCardProps) {
             </p>
           </div>
         </Link>
-        {isOwner && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground"
-                data-ocid={`post.options_button.${index}`}
-              >
-                <MoreHorizontal className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground"
+              data-ocid={`post.options_button.${index}`}
+            >
+              <MoreHorizontal className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {isOwner && (
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
                 onClick={handleDelete}
@@ -143,9 +176,18 @@ export function PostCard({ post, index = 1, pinned }: PostCardProps) {
                 <Trash2 className="w-4 h-4 mr-2" />
                 Delete post
               </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+            )}
+            {identity && !isOwner && (
+              <DropdownMenuItem
+                onClick={() => setReportOpen(true)}
+                data-ocid={`post.report_button.${index}`}
+              >
+                <Flag className="w-4 h-4 mr-2" />
+                Report post
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Content */}
@@ -203,6 +245,41 @@ export function PostCard({ post, index = 1, pinned }: PostCardProps) {
           <span className="font-medium">Share</span>
         </button>
       </div>
+
+      {/* Report Dialog */}
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="sm:max-w-md" data-ocid="post.report_dialog">
+          <DialogHeader>
+            <DialogTitle>Report Post</DialogTitle>
+            <DialogDescription>
+              Tell us why this post should be reviewed by moderators.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            placeholder="Reason for reporting..."
+            value={reportReason}
+            onChange={(e) => setReportReason(e.target.value)}
+            className="min-h-[80px]"
+            data-ocid="post.report_input"
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setReportOpen(false)}
+              data-ocid="post.report_cancel_button"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleReport}
+              disabled={!reportReason.trim() || flagging}
+              data-ocid="post.report_submit_button"
+            >
+              {flagging ? "Submitting..." : "Submit Report"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </article>
   );
 }

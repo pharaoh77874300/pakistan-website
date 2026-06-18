@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Avatar3D } from "../components/shared/Avatar3D";
 
 const DRAFT_KEY = "pakistan_profile_setup_draft";
 
@@ -68,6 +69,19 @@ export default function ProfileSetupPage() {
   const [bio, setBio] = useState(draft.bio);
   const [avatar, setAvatar] = useState<ExternalBlob | undefined>(undefined);
   const [cover, setCover] = useState<ExternalBlob | undefined>(undefined);
+
+  // Avatar type toggle
+  const [avatarType, setAvatarType] = useState<"photo" | "3d">("photo");
+  const [skinTone, setSkinTone] = useState<
+    "light" | "medium" | "dark" | "deep"
+  >("medium");
+  const [hairStyle, setHairStyle] = useState<
+    "short" | "medium" | "long" | "curly"
+  >("short");
+  const [bodyType, setBodyType] = useState<"slim" | "average" | "athletic">(
+    "average",
+  );
+
   const [usernameError, setUsernameError] = useState("");
   const [usernameChecking, setUsernameChecking] = useState(false);
   const [usernameTaken, setUsernameTaken] = useState(false);
@@ -152,8 +166,13 @@ export default function ProfileSetupPage() {
       await createProfile({
         username: username.trim(),
         bio: bio.trim(),
-        avatarBlob: avatar,
+        avatarBlob: avatarType === "photo" ? avatar : undefined,
         coverBlob: cover,
+        avatarType,
+        avatar3dConfig:
+          avatarType === "3d"
+            ? JSON.stringify({ skinTone, hairStyle, bodyType })
+            : undefined,
       });
       clearDraft();
       toast.success("Profile created! Welcome to Pakistan 🎉");
@@ -246,22 +265,141 @@ export default function ProfileSetupPage() {
                 </div>
               </div>
 
-              {/* Avatar row */}
+              {/* Avatar type toggle */}
               <div className="px-5 pb-5">
-                <div className="flex items-end gap-4 -mt-8 mb-4">
-                  <div className="relative">
-                    <Avatar blob={avatar} name={username} size="xl" />
-                  </div>
-                  <div className="pb-1">
-                    <ImageUpload
-                      value={avatar}
-                      onChange={setAvatar}
-                      label="Upload photo"
-                      aspect="square"
-                      data-ocid="profile_setup.avatar_upload"
-                    />
-                  </div>
+                <div className="flex items-center gap-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setAvatarType("photo")}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      avatarType === "photo"
+                        ? "bg-green-600 text-white"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    }`}
+                    data-ocid="profile_setup.avatar_tab_photo"
+                  >
+                    Upload Photo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAvatarType("3d")}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      avatarType === "3d"
+                        ? "bg-green-600 text-white"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    }`}
+                    data-ocid="profile_setup.avatar_tab_3d"
+                  >
+                    3D Avatar
+                  </button>
                 </div>
+
+                {/* Avatar row */}
+                <div className="flex items-end gap-4 mb-4">
+                  <div className="relative">
+                    {avatarType === "3d" ? (
+                      <Avatar3D
+                        skinTone={skinTone}
+                        hairStyle={hairStyle}
+                        bodyType={bodyType}
+                        size={80}
+                      />
+                    ) : (
+                      <Avatar blob={avatar} name={username} size="xl" />
+                    )}
+                  </div>
+                  {avatarType === "photo" && (
+                    <div className="pb-1">
+                      <ImageUpload
+                        value={avatar}
+                        onChange={setAvatar}
+                        label="Upload photo"
+                        aspect="square"
+                        data-ocid="profile_setup.avatar_upload"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* 3D Avatar customization */}
+                {avatarType === "3d" && (
+                  <div
+                    className="space-y-4"
+                    data-ocid="profile_setup.avatar3d_controls"
+                  >
+                    {/* Skin tone */}
+                    <div>
+                      <p className="text-sm font-medium mb-2">Skin Tone</p>
+                      <div className="flex gap-2">
+                        {(["light", "medium", "dark", "deep"] as const).map(
+                          (tone) => (
+                            <button
+                              key={tone}
+                              type="button"
+                              onClick={() => setSkinTone(tone)}
+                              className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-colors ${
+                                skinTone === tone
+                                  ? "bg-green-600 text-white"
+                                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                              }`}
+                              data-ocid={`profile_setup.skin_tone_${tone}`}
+                            >
+                              {tone}
+                            </button>
+                          ),
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Hair style */}
+                    <div>
+                      <p className="text-sm font-medium mb-2">Hair Style</p>
+                      <div className="flex gap-2">
+                        {(["short", "medium", "long", "curly"] as const).map(
+                          (style) => (
+                            <button
+                              key={style}
+                              type="button"
+                              onClick={() => setHairStyle(style)}
+                              className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-colors ${
+                                hairStyle === style
+                                  ? "bg-green-600 text-white"
+                                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                              }`}
+                              data-ocid={`profile_setup.hair_style_${style}`}
+                            >
+                              {style}
+                            </button>
+                          ),
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Body type */}
+                    <div>
+                      <p className="text-sm font-medium mb-2">Body Type</p>
+                      <div className="flex gap-2">
+                        {(["slim", "average", "athletic"] as const).map(
+                          (bt) => (
+                            <button
+                              key={bt}
+                              type="button"
+                              onClick={() => setBodyType(bt)}
+                              className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-colors ${
+                                bodyType === bt
+                                  ? "bg-green-600 text-white"
+                                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                              }`}
+                              data-ocid={`profile_setup.body_type_${bt}`}
+                            >
+                              {bt}
+                            </button>
+                          ),
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Fields inside the card */}
                 <div className="space-y-4">

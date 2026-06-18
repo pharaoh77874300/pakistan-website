@@ -1,4 +1,6 @@
 import { PageLoader } from "@/components/shared/LoadingSpinner";
+import AdminPage from "@/pages/AdminPage";
+import JoinModeratorPage from "@/pages/JoinModeratorPage";
 import SettingsPage from "@/pages/SettingsPage";
 import { useAuthStore } from "@/store/auth-store";
 import {
@@ -20,7 +22,6 @@ const PostDetailPage = lazy(() => import("@/pages/PostDetailPage"));
 const SignupPage = lazy(() => import("@/pages/SignupPage"));
 const NotificationsPage = lazy(() => import("@/pages/NotificationsPage"));
 const ProfileSetupPage = lazy(() => import("@/pages/ProfileSetupPage"));
-const AdminPage = lazy(() => import("@/pages/AdminPage"));
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -103,7 +104,18 @@ const notificationsRoute = createRoute({
 const adminRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/admin",
+  // Admin panel handles its own II auth gate — no profile required.
+  // Unauthenticated users see a "Continue with Internet Identity" screen.
   component: AdminPage,
+});
+
+const joinModeratorRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/admin/join-moderator",
+  validateSearch: (search: Record<string, unknown>) => ({
+    code: search.code as string | undefined,
+  }),
+  component: JoinModeratorPage,
 });
 
 const routeTree = rootRoute.addChildren([
@@ -117,6 +129,7 @@ const routeTree = rootRoute.addChildren([
   postDetailRoute,
   settingsRoute,
   notificationsRoute,
+  joinModeratorRoute,
   adminRoute,
 ]);
 

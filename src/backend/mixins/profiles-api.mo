@@ -61,6 +61,8 @@ mixin (
           bio = ?input.bio;
           avatarBlob = input.avatarBlob;
           coverBlob = input.coverBlob;
+          avatarType = input.avatarType;
+          avatar3dConfig = input.avatar3dConfig;
         });
       };
     };
